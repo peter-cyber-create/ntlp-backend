@@ -2,17 +2,116 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import morgan from 'morgan';
 import userRoutes from './routes/users.js';
 import activityRoutes from './routes/activities.js';
+import speakerRoutes from './routes/speakers.js';
+import sessionRoutes from './routes/sessions.js';
+import announcementRoutes from './routes/announcements.js';
+import registrationRoutes from './routes/registrations.js';
+import abstractRoutes from './routes/abstracts.js';
+import reviewRoutes from './routes/reviews.js';
+import { rateLimit } from './middleware/auth.js';
 
 dotenv.config();
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+// Middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
 
-app.use('/api/users', userRoutes);
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('combined'));
+
+// Rate limiting
+app.use(rateLimit(1000, 15 * 60 * 1000)); // 1000 requests per 15 minutes
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    service: 'NTLP Backend API',
+    version: '1.0.0'
+  });
+});
+
+// API Documentation endpoint
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'NTLP Conference Management API',
+    version: '1.0.0',
+    endpoints: {
+      registrations: '/api/registrations',
+      activities: '/api/activities',
+      speakers: '/api/speakers', 
+      sessions: '/api/sessions',
+      announcements: '/api/announcements',
+      abstracts: '/api/abstracts',
+      reviews: '/api/reviews',
+      'session-registrations': '/api/register/sessions',
+      'activity-registrations': '/api/register/activities'
+    },
+    health: '/health',
+    features: [
+      'Conference registration management',
+      'Abstract submission and review system', 
+      'Speaker and session management',
+      'Activity and event coordination',
+      'Announcement system',
+      'Full peer review workflow'
+    ]
+  });
+});
+
+// API Routes
+app.use('/api/registrations', userRoutes);
 app.use('/api/activities', activityRoutes);
+app.use('/api/speakers', speakerRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/announcements', announcementRoutes);
+app.use('/api/register', registrationRoutes);
+app.use('/api/abstracts', abstractRoutes);
+app.use('/api/reviews', reviewRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err.stack);
+  res.status(500).json({ 
+    error: 'Something went wrong!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.originalUrl,
+    method: req.method,
+    available_endpoints: [
+      '/health',
+      '/api',
+      '/api/registrations',
+      '/api/activities', 
+      '/api/speakers',
+      '/api/sessions',
+      '/api/announcements',
+      '/api/abstracts',
+      '/api/reviews',
+      '/api/register'
+    ]
+  });
+});
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 NTLP Backend API running on port ${PORT}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`📚 API docs: http://localhost:${PORT}/api`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📝 Features: Registration, Abstracts, Reviews, Sessions, Activities`);
+});
