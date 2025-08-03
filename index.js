@@ -11,6 +11,7 @@ import announcementRoutes from './routes/announcements.js';
 import registrationRoutes from './routes/registrations.js';
 import abstractRoutes from './routes/abstracts.js';
 import reviewRoutes from './routes/reviews.js';
+import contactRoutes from './routes/contacts.js';
 import { rateLimit } from './middleware/auth.js';
 
 dotenv.config();
@@ -76,6 +77,7 @@ app.use('/api/announcements', announcementRoutes);
 app.use('/api/register', registrationRoutes);
 app.use('/api/abstracts', abstractRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/contacts', contactRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

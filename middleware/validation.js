@@ -240,3 +240,33 @@ export const validateAbstractStatus = [
     .withMessage('Reviewer comments must be less than 2000 characters'),
   handleValidationErrors
 ];
+
+// Contact validation
+export const validateContact = [
+  body('name')
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Name is required and must be less than 100 characters'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Valid email is required'),
+  body('phone')
+    .optional()
+    .isMobilePhone()
+    .withMessage('Please provide a valid phone number'),
+  body('organization')
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('Organization must be less than 200 characters'),
+  body('subject')
+    .trim()
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Subject is required and must be less than 200 characters'),
+  body('message')
+    .trim()
+    .isLength({ min: 1, max: 2000 })
+    .withMessage('Message is required and must be less than 2000 characters'),
+  handleValidationErrors
+];

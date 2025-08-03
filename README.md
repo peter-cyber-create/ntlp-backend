@@ -139,6 +139,13 @@ The API will be available at `http://localhost:5000`
 - `GET /api/reviews/reviewer/:email` - Get reviews by reviewer
 - `GET /api/reviews/stats/overview` - Get review statistics
 
+### Contacts & Support
+- `POST /api/contacts` - Submit contact message
+- `GET /api/contacts` - Get all contact messages (admin)
+- `GET /api/contacts/:id` - Get contact message by ID
+- `PUT /api/contacts/:id` - Update contact status
+- `DELETE /api/contacts/:id` - Delete contact message
+
 ### Registration Management
 - `POST /api/register/sessions/:sessionId` - Register for session
 - `DELETE /api/register/sessions/:sessionId/:registrationId` - Unregister from session
@@ -157,6 +164,7 @@ The database includes the following main tables:
 - **announcements** - Conference announcements
 - **abstracts** - Paper/abstract submissions with metadata
 - **reviews** - Peer reviews with scores and recommendations
+- **contacts** - Contact messages and support inquiries
 - **session_registrations** - Many-to-many for session attendance
 - **activity_registrations** - Many-to-many for activity participation
 - **abstract_sessions** - Links accepted abstracts to presentation sessions

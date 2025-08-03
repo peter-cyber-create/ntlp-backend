@@ -189,3 +189,26 @@ CREATE TRIGGER update_sessions_updated_at BEFORE UPDATE ON sessions FOR EACH ROW
 CREATE TRIGGER update_announcements_updated_at BEFORE UPDATE ON announcements FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_abstracts_updated_at BEFORE UPDATE ON abstracts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Contact messages table
+CREATE TABLE contacts (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    organization VARCHAR(200),
+    subject VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'responded', 'closed')),
+    response_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for contacts
+CREATE INDEX idx_contacts_email ON contacts(email);
+CREATE INDEX idx_contacts_status ON contacts(status);
+CREATE INDEX idx_contacts_created_at ON contacts(created_at DESC);
+
+-- Trigger for contacts
+CREATE TRIGGER update_contacts_updated_at BEFORE UPDATE ON contacts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
