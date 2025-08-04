@@ -10,7 +10,12 @@
     "dev": "nodemon index.js",
     "server": "nodemon index.js",
     "db:setup": "psql -U postgres -d ntlp_conference -f database/schema.sql",
-    "db:seed": "psql -U postgres -d ntlp_conference -f database/sample-data.sql"
+    "db:seed": "psql -U postgres -d ntlp_conference -f database/sample-data.sql",
+    "deploy": "chmod +x deploy.sh && ./deploy.sh",
+    "pm2:start": "pm2 start index.js --name ntlp-backend",
+    "pm2:stop": "pm2 stop ntlp-backend",
+    "pm2:restart": "pm2 restart ntlp-backend",
+    "pm2:logs": "pm2 logs ntlp-backend"
   },
   "keywords": [
     "conference",
