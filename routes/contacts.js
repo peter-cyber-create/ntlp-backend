@@ -1,6 +1,7 @@
 import express from 'express';
 import { pool } from '../config/db.js';
 import { validateContact } from '../middleware/validation.js';
+import { sendContactConfirmation, sendAdminNotification, sendResponseEmail } from '../middleware/emailService.js';
 
 const router = express.Router();
 
@@ -91,10 +92,23 @@ router.post('/', validateContact, async (req, res) => {
         const values = [name, email, phone || null, organization || null, subject, message];
         const result = await pool.query(query, values);
         
+        const newContact = result.rows[0];
+        
+        // Send email notifications asynchronously (don't wait for them)
+        setImmediate(async () => {
+            try {
+                await sendContactConfirmation(newContact);
+                await sendAdminNotification(newContact);
+            } catch (emailError) {
+                console.error('Email notification error:', emailError);
+            }
+        });
+        
         res.status(201).json({
             message: 'Contact message submitted successfully',
-            contact: result.rows[0],
-            timestamp: new Date().toISOString()
+            contact: newContact,
+            timestamp: new Date().toISOString(),
+            info: 'Confirmation email will be sent shortly'
         });
         
     } catch (error) {
@@ -153,6 +167,22 @@ router.put('/:id', async (req, res) => {
         const { id } = req.params;
         const { status, response_message } = req.body;
         
+        // First get the current contact data
+        const currentContactQuery = `
+            SELECT * FROM contacts WHERE id = $1
+        `;
+        const currentResult = await pool.query(currentContactQuery, [id]);
+        
+        if (currentResult.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Contact not found',
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        const currentContact = currentResult.rows[0];
+        
+        // Update the contact
         const query = `
             UPDATE contacts 
             SET status = $1, response_message = $2, updated_at = NOW()
@@ -161,18 +191,24 @@ router.put('/:id', async (req, res) => {
         `;
         
         const result = await pool.query(query, [status, response_message || null, id]);
+        const updatedContact = result.rows[0];
         
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                error: 'Contact not found',
-                timestamp: new Date().toISOString()
+        // If status changed to 'responded' and there's a response message, send email
+        if (status === 'responded' && response_message && currentContact.status !== 'responded') {
+            setImmediate(async () => {
+                try {
+                    await sendResponseEmail(updatedContact, response_message);
+                } catch (emailError) {
+                    console.error('Failed to send response email:', emailError);
+                }
             });
         }
         
         res.json({
             message: 'Contact updated successfully',
-            contact: result.rows[0],
-            timestamp: new Date().toISOString()
+            contact: updatedContact,
+            timestamp: new Date().toISOString(),
+            info: status === 'responded' && response_message ? 'Response email will be sent to the contact' : undefined
         });
         
     } catch (error) {

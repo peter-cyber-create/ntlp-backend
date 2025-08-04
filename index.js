@@ -12,7 +12,9 @@ import registrationRoutes from './routes/registrations.js';
 import abstractRoutes from './routes/abstracts.js';
 import reviewRoutes from './routes/reviews.js';
 import contactRoutes from './routes/contacts.js';
+import adminRoutes from './routes/admin.js';
 import { rateLimit } from './middleware/auth.js';
+import { verifyEmailConfig } from './middleware/emailService.js';
 
 dotenv.config();
 const app = express();
@@ -29,6 +31,9 @@ app.use(morgan('combined'));
 
 // Rate limiting
 app.use(rateLimit(1000, 15 * 60 * 1000)); // 1000 requests per 15 minutes
+
+// Initialize email service
+verifyEmailConfig();
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -53,6 +58,8 @@ app.get('/api', (req, res) => {
       announcements: '/api/announcements',
       abstracts: '/api/abstracts',
       reviews: '/api/reviews',
+      contacts: '/api/contacts',
+      admin: '/api/admin',
       'session-registrations': '/api/register/sessions',
       'activity-registrations': '/api/register/activities'
     },
@@ -78,6 +85,7 @@ app.use('/api/register', registrationRoutes);
 app.use('/api/abstracts', abstractRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/contacts', contactRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -104,6 +112,8 @@ app.use('*', (req, res) => {
       '/api/announcements',
       '/api/abstracts',
       '/api/reviews',
+      '/api/contacts',
+      '/api/admin',
       '/api/register'
     ]
   });
