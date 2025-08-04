@@ -235,6 +235,67 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// BULK ACTIONS - Update multiple abstracts status (must be before parameterized routes)
+router.patch('/bulk/status', async (req, res) => {
+  try {
+    const { ids, status, reviewer_comments } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'IDs array is required' });
+    }
+
+    if (!['submitted', 'under_review', 'accepted', 'rejected', 'revision_required'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const placeholders = ids.map((_, index) => `$${index + 1}`).join(',');
+    const params = [...ids, status, reviewer_comments || null];
+
+    const result = await pool.query(
+      `UPDATE abstracts SET 
+        status = $${ids.length + 1},
+        reviewer_comments = $${ids.length + 2},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id IN (${placeholders}) RETURNING *`,
+      params
+    );
+
+    res.json({
+      message: `${result.rows.length} abstracts updated successfully`,
+      updated: result.rows
+    });
+  } catch (error) {
+    console.error('Error bulk updating abstracts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// BULK ACTIONS - Delete multiple abstracts (must be before parameterized routes)
+router.delete('/bulk', async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'IDs array is required' });
+    }
+
+    const placeholders = ids.map((_, index) => `$${index + 1}`).join(',');
+    
+    const result = await pool.query(
+      `DELETE FROM abstracts WHERE id IN (${placeholders}) RETURNING *`,
+      ids
+    );
+
+    res.json({
+      message: `${result.rows.length} abstracts deleted successfully`,
+      deleted: result.rows
+    });
+  } catch (error) {
+    console.error('Error bulk deleting abstracts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // UPDATE abstract status (for review process)
 router.patch('/:id/status', validateAbstractStatus, async (req, res) => {
   try {

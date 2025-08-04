@@ -2,6 +2,12 @@ import express from 'express';
 import { pool } from '../config/db.js';
 import { validateContact } from '../middleware/validation.js';
 import { sendContactConfirmation, sendAdminNotification, sendResponseEmail } from '../middleware/emailService.js';
+import { 
+    successResponse, 
+    errorResponse, 
+    bulkOperationResponse,
+    emailNotificationResponse
+} from '../middleware/responseFormatter.js';
 
 const router = express.Router();
 
@@ -104,19 +110,14 @@ router.post('/', validateContact, async (req, res) => {
             }
         });
         
-        res.status(201).json({
-            message: 'Contact message submitted successfully',
+        return successResponse(res, {
             contact: newContact,
-            timestamp: new Date().toISOString(),
             info: 'Confirmation email will be sent shortly'
-        });
+        }, 'Contact message submitted successfully', 201);
         
     } catch (error) {
         console.error('Error creating contact:', error);
-        res.status(500).json({
-            error: 'Failed to submit contact message',
-            timestamp: new Date().toISOString()
-        });
+        return errorResponse(res, 'Failed to submit contact message', 500);
     }
 });
 
@@ -144,13 +145,10 @@ router.get('/:id', async (req, res) => {
         const result = await pool.query(query, [id]);
         
         if (result.rows.length === 0) {
-            return res.status(404).json({
-                error: 'Contact not found',
-                timestamp: new Date().toISOString()
-            });
+            return errorResponse(res, 'Contact not found', 404);
         }
         
-        res.json(result.rows[0]);
+        return successResponse(res, result.rows[0], 'Contact retrieved successfully');
         
     } catch (error) {
         console.error('Error fetching contact:', error);
@@ -241,6 +239,79 @@ router.delete('/:id', async (req, res) => {
         
     } catch (error) {
         console.error('Error deleting contact:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// BULK ACTIONS - Update multiple contacts status
+router.patch('/bulk/status', async (req, res) => {
+    try {
+        const { ids, status, response_message } = req.body;
+
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ 
+                error: 'IDs array is required',
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        if (!['pending', 'responded', 'closed'].includes(status)) {
+            return res.status(400).json({ 
+                error: 'Invalid status. Must be pending, responded, or closed',
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        const placeholders = ids.map((_, index) => `$${index + 1}`).join(',');
+        const params = [...ids, status, response_message || null];
+
+        const result = await pool.query(
+            `UPDATE contacts SET 
+                status = $${ids.length + 1}, 
+                response_message = $${ids.length + 2}, 
+                updated_at = NOW()
+            WHERE id IN (${placeholders}) RETURNING *`,
+            params
+        );
+
+        return bulkOperationResponse(res, 'updated', result.rows, ids.length);
+
+    } catch (error) {
+        console.error('Error bulk updating contacts:', error);
+        return errorResponse(res, 'Internal server error', 500);
+    }
+});
+
+// BULK ACTIONS - Delete multiple contacts
+router.delete('/bulk', async (req, res) => {
+    try {
+        const { ids } = req.body;
+
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ 
+                error: 'IDs array is required',
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        const placeholders = ids.map((_, index) => `$${index + 1}`).join(',');
+        
+        const result = await pool.query(
+            `DELETE FROM contacts WHERE id IN (${placeholders}) RETURNING *`,
+            ids
+        );
+
+        res.json({
+            message: `${result.rows.length} contacts deleted successfully`,
+            deleted: result.rows,
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('Error bulk deleting contacts:', error);
         res.status(500).json({
             error: 'Internal server error',
             timestamp: new Date().toISOString()

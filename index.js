@@ -91,8 +91,20 @@ app.use('/api/admin', adminRoutes);
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack);
   res.status(500).json({ 
+    success: false,
     error: 'Something went wrong!',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    notification: {
+      type: 'error',
+      title: 'Server Error',
+      message: 'An unexpected error occurred. Please try again.',
+      duration: 5000,
+      icon: '❌',
+      actions: [
+        { label: 'Refresh Page', action: 'reload' },
+        { label: 'Contact Support', action: 'contact_support' }
+      ]
+    }
   });
 });
 

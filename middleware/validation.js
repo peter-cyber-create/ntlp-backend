@@ -1,14 +1,12 @@
 // backend/middleware/validation.js
 import { body, validationResult } from 'express-validator';
+import { validationErrorResponse } from './responseFormatter.js';
 
 // Generic validation error handler
 export const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({
-      error: 'Validation failed',
-      details: errors.array()
-    });
+    return validationErrorResponse(res, errors.array());
   }
   next();
 };
@@ -32,7 +30,7 @@ export const validateRegistration = [
     .isMobilePhone()
     .withMessage('Please provide a valid phone number'),
   body('registration_type')
-    .isIn(['student', 'academic', 'industry', 'early_bird', 'regular'])
+    .isIn(['student', 'academic', 'industry', 'professional', 'early_bird', 'regular'])
     .withMessage('Invalid registration type'),
   body('status')
     .optional()

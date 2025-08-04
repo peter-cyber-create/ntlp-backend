@@ -1,16 +1,17 @@
 // backend/middleware/auth.js
 import jwt from 'jsonwebtoken';
+import { authErrorResponse, rateLimitResponse } from './responseFormatter.js';
 
 // Simple API key middleware for basic authentication
 export const requireApiKey = (req, res, next) => {
   const apiKey = req.headers['x-api-key'];
   
   if (!apiKey) {
-    return res.status(401).json({ error: 'API key is required' });
+    return authErrorResponse(res, 'API key is required');
   }
   
   if (apiKey !== process.env.API_KEY) {
-    return res.status(401).json({ error: 'Invalid API key' });
+    return authErrorResponse(res, 'Invalid API key');
   }
   
   next();
@@ -22,7 +23,7 @@ export const verifyToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
   
   if (!token) {
-    return res.status(401).json({ error: 'Access token is required' });
+    return authErrorResponse(res, 'Access token is required');
   }
   
   try {
@@ -30,14 +31,14 @@ export const verifyToken = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    return res.status(403).json({ error: 'Invalid or expired token' });
+    return authErrorResponse(res, 'Invalid or expired token');
   }
 };
 
 // Admin role check middleware
 export const requireAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
+    return authErrorResponse(res, 'Admin access required');
   }
   next();
 };
@@ -61,10 +62,7 @@ export const rateLimit = (maxRequests = 100, windowMs = 15 * 60 * 1000) => {
     const validRequests = requests.filter(timestamp => timestamp > windowStart);
     
     if (validRequests.length >= maxRequests) {
-      return res.status(429).json({
-        error: 'Too many requests',
-        retryAfter: Math.ceil(windowMs / 1000)
-      });
+      return rateLimitResponse(res, Math.ceil(windowMs / 1000));
     }
     
     validRequests.push(now);

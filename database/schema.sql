@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS registrations (
     position VARCHAR(100),
     country VARCHAR(100),
     session_track VARCHAR(100),
-    registration_type VARCHAR(50) CHECK (registration_type IN ('student', 'academic', 'industry', 'early_bird', 'regular')),
+    registration_type VARCHAR(50) CHECK (registration_type IN ('student', 'academic', 'industry', 'professional', 'early_bird', 'regular')),
     dietary_requirements TEXT,
     special_needs TEXT,
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled', 'waitlist')),
