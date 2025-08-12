@@ -86,9 +86,13 @@ router.get('/', async (req, res) => {
     let params = [];
     const conditions = [];
 
+    // If no status filter is provided, default to showing all except deleted/archived (if such statuses exist)
     if (status) {
       conditions.push(`a.status = $${params.length + 1}`);
       params.push(status);
+    } else {
+      // Show all abstracts, including 'submitted', unless you want to exclude certain statuses
+      // If you want to exclude deleted/archived, add: conditions.push(`a.status != 'deleted' AND a.status != 'archived'`);
     }
 
     if (track) {
