@@ -29,6 +29,33 @@ export const validateRegistration = [
     .optional()
     .isMobilePhone()
     .withMessage('Please provide a valid phone number'),
+  // Support both institution and organization fields
+  body('institution')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Institution must be less than 255 characters'),
+  body('organization')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Organization must be less than 255 characters'),
+  // Support both country and district fields
+  body('country')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Country must be less than 100 characters'),
+  body('district')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('District must be less than 100 characters'),
+  body('position')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Position must be less than 255 characters'),
   body('registration_type')
     .isIn(['student', 'academic', 'industry', 'professional', 'early_bird', 'regular'])
     .withMessage('Invalid registration type'),

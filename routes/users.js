@@ -2,6 +2,7 @@
 import express from 'express';
 import { pool } from '../config/db.js';
 import { validateRegistration } from '../middleware/validation.js';
+import { successResponse, errorResponse, validationErrorResponse } from '../middleware/responseFormatter.js';
 
 const router = express.Router();
 
@@ -14,6 +15,22 @@ router.post('/', (req, res, next) => {
     req.body.last_name = nameParts.slice(1).join(' ') || '';
     delete req.body.name;
   }
+  
+  // Handle frontend field mapping: organization <-> institution, district <-> country
+  if (req.body.organization && !req.body.institution) {
+    req.body.institution = req.body.organization;
+  }
+  if (req.body.district && !req.body.country) {
+    req.body.country = req.body.district;
+  }
+  // Also support reverse mapping for flexibility
+  if (req.body.institution && !req.body.organization) {
+    req.body.organization = req.body.institution;
+  }
+  if (req.body.country && !req.body.district) {
+    req.body.district = req.body.country;
+  }
+  
   next();
 }, validateRegistration, async (req, res) => {
   try {
@@ -22,9 +39,11 @@ router.post('/', (req, res, next) => {
       last_name,
       email,
       institution,
+      organization,
       phone,
       position,
       country,
+      district,
       session_track,
       registration_type,
       dietary_requirements,
@@ -37,36 +56,43 @@ router.post('/', (req, res, next) => {
         first_name, 
         last_name, 
         email, 
-        institution, 
+        institution,
+        organization, 
         phone, 
         position, 
-        country, 
+        country,
+        district, 
         session_track, 
         registration_type, 
         dietary_requirements, 
         special_needs, 
         status
-      ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
       [
         first_name,
         last_name,
         email,
-        institution,
+        institution || organization,
+        organization || institution,
         phone,
         position,
-        country,
+        country || district,
+        district || country,
         session_track,
         registration_type,
         dietary_requirements,
         special_needs,
-        status
+        status || 'pending'
       ]
     );
 
-    res.status(201).json(result.rows[0]);
+    return successResponse(res, result.rows[0], 'Registration created successfully', {
+      action: 'view_registration',
+      url: `/registrations/${result.rows[0].id}`
+    });
   } catch (error) {
     console.error('Error creating user:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return errorResponse(res, 'Failed to create registration', 500);
   }
 });
 
@@ -93,13 +119,13 @@ router.get('/', async (req, res) => {
       stats.byCountry[country] = (stats.byCountry[country] || 0) + 1;
     });
     
-    res.json({
+    return successResponse(res, {
       data: registrations,
       stats: stats
-    });
+    }, 'Registrations retrieved successfully');
   } catch (error) {
     console.error('Error fetching registrations:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return errorResponse(res, 'Failed to fetch registrations', 500);
   }
 });
 
@@ -110,13 +136,13 @@ router.get('/:id', async (req, res) => {
     const result = await pool.query('SELECT * FROM registrations WHERE id = $1', [id]);
     
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Registration not found' });
+      return errorResponse(res, 'Registration not found', 404);
     }
     
-    res.json(result.rows[0]);
+    return successResponse(res, result.rows[0], 'Registration retrieved successfully');
   } catch (error) {
     console.error('Error fetching registration:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return errorResponse(res, 'Failed to fetch registration', 500);
   }
 });
 
@@ -124,14 +150,31 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Handle frontend field mapping for updates too
+    if (req.body.organization && !req.body.institution) {
+      req.body.institution = req.body.organization;
+    }
+    if (req.body.district && !req.body.country) {
+      req.body.country = req.body.district;
+    }
+    if (req.body.institution && !req.body.organization) {
+      req.body.organization = req.body.institution;
+    }
+    if (req.body.country && !req.body.district) {
+      req.body.district = req.body.country;
+    }
+    
     const {
       first_name,
       last_name,
       email,
       institution,
+      organization,
       phone,
       position,
       country,
+      district,
       session_track,
       registration_type,
       dietary_requirements,
@@ -145,24 +188,28 @@ router.put('/:id', async (req, res) => {
         last_name = $2,
         email = $3,
         institution = $4,
-        phone = $5,
-        position = $6,
-        country = $7,
-        session_track = $8,
-        registration_type = $9,
-        dietary_requirements = $10,
-        special_needs = $11,
-        status = $12,
+        organization = $5,
+        phone = $6,
+        position = $7,
+        country = $8,
+        district = $9,
+        session_track = $10,
+        registration_type = $11,
+        dietary_requirements = $12,
+        special_needs = $13,
+        status = $14,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $13 RETURNING *`,
+      WHERE id = $15 RETURNING *`,
       [
         first_name,
         last_name,
         email,
-        institution,
+        institution || organization,
+        organization || institution,
         phone,
         position,
-        country,
+        country || district,
+        district || country,
         session_track,
         registration_type,
         dietary_requirements,
@@ -173,13 +220,16 @@ router.put('/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Registration not found' });
+      return errorResponse(res, 'Registration not found', 404);
     }
 
-    res.json(result.rows[0]);
+    return successResponse(res, result.rows[0], 'Registration updated successfully', {
+      action: 'view_registration',
+      url: `/registrations/${result.rows[0].id}`
+    });
   } catch (error) {
     console.error('Error updating registration:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return errorResponse(res, 'Failed to update registration', 500);
   }
 });
 
@@ -190,13 +240,16 @@ router.delete('/:id', async (req, res) => {
     const result = await pool.query('DELETE FROM registrations WHERE id = $1 RETURNING *', [id]);
     
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Registration not found' });
+      return errorResponse(res, 'Registration not found', 404);
     }
     
-    res.json({ message: 'Registration deleted successfully', deleted: result.rows[0] });
+    return successResponse(res, { 
+      message: 'Registration deleted successfully', 
+      deleted: result.rows[0] 
+    }, 'Registration deleted successfully');
   } catch (error) {
     console.error('Error deleting registration:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return errorResponse(res, 'Failed to delete registration', 500);
   }
 });
 
@@ -206,11 +259,11 @@ router.patch('/bulk/status', async (req, res) => {
     const { ids, status } = req.body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ error: 'IDs array is required' });
+      return validationErrorResponse(res, 'IDs array is required');
     }
 
     if (!['pending', 'confirmed', 'cancelled', 'waitlist'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+      return validationErrorResponse(res, 'Invalid status. Must be: pending, confirmed, cancelled, or waitlist');
     }
 
     const placeholders = ids.map((_, index) => `$${index + 1}`).join(',');
@@ -224,13 +277,13 @@ router.patch('/bulk/status', async (req, res) => {
       params
     );
 
-    res.json({
+    return successResponse(res, {
       message: `${result.rows.length} registrations updated successfully`,
       updated: result.rows
-    });
+    }, `Bulk status update completed - ${result.rows.length} registrations updated to "${status}"`);
   } catch (error) {
     console.error('Error bulk updating registrations:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return errorResponse(res, 'Failed to update registrations', 500);
   }
 });
 
@@ -240,7 +293,7 @@ router.delete('/bulk', async (req, res) => {
     const { ids } = req.body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ error: 'IDs array is required' });
+      return validationErrorResponse(res, 'IDs array is required');
     }
 
     const placeholders = ids.map((_, index) => `$${index + 1}`).join(',');
@@ -250,13 +303,13 @@ router.delete('/bulk', async (req, res) => {
       ids
     );
 
-    res.json({
+    return successResponse(res, {
       message: `${result.rows.length} registrations deleted successfully`,
       deleted: result.rows
-    });
+    }, `Bulk deletion completed - ${result.rows.length} registrations deleted`);
   } catch (error) {
     console.error('Error bulk deleting registrations:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return errorResponse(res, 'Failed to delete registrations', 500);
   }
 });
 

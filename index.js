@@ -76,16 +76,20 @@ app.get('/api', (req, res) => {
 });
 
 // API Routes
-app.use('/api/registrations', userRoutes);
+import paymentsRoutes from './routes/payments.js';
+// ...existing code...
+app.use('/api/registrations', userRoutes);  // Main registration CRUD
+app.use('/api/users', userRoutes);          // Alternative alias for backward compatibility
 app.use('/api/activities', activityRoutes);
 app.use('/api/speakers', speakerRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/announcements', announcementRoutes);
-app.use('/api/register', registrationRoutes);
+app.use('/api/register', registrationRoutes);  // Session/activity registrations
 app.use('/api/abstracts', abstractRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/payments', paymentsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
