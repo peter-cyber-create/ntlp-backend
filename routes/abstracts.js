@@ -3,11 +3,115 @@ import express from 'express';
 import { pool } from '../config/db.js';
 import { validateAbstract, validateAbstractStatus } from '../middleware/validation.js';
 
+// Conference tracks and subcategories/topics
+const TRACKS = [
+  {
+    name: 'Integrated Diagnostics, AMR, and Epidemic Readiness',
+    value: 'track_1',
+    topics: [
+      'Optimizing Laboratory Diagnostics in Integrated Health Systems',
+      'Quality management systems in Multi-Disease Diagnostics',
+      'Leveraging Point-of-Care Testing to Enhance Integrated Service Delivery',
+      'Combatting Antimicrobial Resistance (AMR) Through Diagnostics',
+      'Strengthening surveillance systems for drug resistance across TB, malaria, HIV, and bacterial infections',
+      'Linking diagnostics to resistance monitoring: From lab to real-time policy response',
+      'Role of Diagnostics in Early Warning Systems: lessons from recent outbreaks',
+      'Expanding access to radiological services: Affordable imaging in low-resource settings',
+    ],
+  },
+  {
+    name: 'Digital Health, Data, and Innovation',
+    value: 'track_2',
+    topics: [
+      'AI-powered diagnostics: Innovations and governance for TB, HIV, and cervical cancer',
+      'Digital platforms for surveillance, early detection, and outbreak prediction',
+      'Data interoperability and health information exchange: service delivery Integration and data/information systems, Gaps, ethics, and governance',
+      'Community-led digital health: Mobile tools, and digital village health teams (VHTs)',
+      'Localized health information systems: Capturing/collection, use of data at grass root and higher levels for fast action.',
+      'Leveraging digital equity in urban and peri-urban health responses',
+    ],
+  },
+  {
+    name: 'Community Engagement for Disease Prevention and Elimination',
+    value: 'track_3',
+    topics: [
+      'Catalyzing youth, community health extension workers (CHEWs), and grassroots champions for health innovation',
+      'Integrating preventive services for communicable and non-communicable diseases, and mental health at household level',
+      'Scaling community-led elimination efforts: Malaria, TB, neglected tropical diseases (NTDs), and leprosy and improving vaccine uptake',
+      'Participatory planning, implementation, monitoring for behavior change, and social accountability',
+    ],
+  },
+  {
+    name: 'Health System Resilience and Emergency Preparedness and Response',
+    value: 'track_4',
+    topics: [
+      'Sepsis and emergency triage protocols in fragile health systems',
+      'Strengthening infection prevention and control (IPC) in primary care; including ready to use isolation facilities.',
+      'Local vaccine and therapeutics; access, and emergency stockpiling',
+      'Health workforce preparedness; Training multidisciplinary rapid response teams',
+      'Continuity of care: Protecting essential health services during crises',
+    ],
+  },
+  {
+    name: 'Policy, Financing and Cross-Sector Integration',
+    value: 'track_5',
+    topics: [
+      'Integrated financing models for chronic and infectious disease burdens',
+      'Social determinant-sensitive policymaking: Urban health, empowering young people for improved health through education and intersectoral action',
+      'National accountability frameworks for health performance',
+      'Scaling UHC through service integration at the primary level',
+      'Policy instruments for embedding health equity in national planning',
+      'Implementation science and translation of results into policy',
+    ],
+  },
+  {
+    name: 'One Health',
+    value: 'track_6',
+    topics: [
+      'Early warning systems and multi-sector coordination for zoonotic outbreaks',
+      'Localizing One Health strategies: Successes and challenges at district level',
+      'Public–private partnerships; Insurance, vouchers, and demand-side financing to reduce out-of-pocket expenditure',
+      'Data harmonization between human and animal health sectors',
+      'Nutrition and lifestyle for health',
+      'Wildlife trade, food systems, and emerging health risks',
+      'Preparing for climate-sensitive disease patterns and spillover threats',
+      'Strengthening Biosafety and Biosecurity Systems to Prevent Zoonotic Spillovers',
+      'Confronting Insecticide Resistance in Vectors: A One Health approach to sustaining vector control gains',
+    ],
+  },
+  {
+    name: 'Care, Treatment & Rehabilitation',
+    value: 'track_7',
+    topics: [
+      'Innovations in equitable health services for acute and chronic diseases care delivery across primary levels',
+      'Interface of communicable and non-communicable diseases (NCDs): Integrated models',
+      'Role of traditional medicine in continuum of care',
+      'Enhancing community trust and treatment adherence through culturally embedded care',
+      'Digital decision-support tools for frontline clinicians in NCD and infectious disease management',
+    ],
+  },
+];
+
+const CROSS_CUTTING_THEMES = [
+  'Health equity and inclusion in marginalized and urbanizing populations',
+  'Urban health, infrastructure, and health service delivery adaptations',
+  'Gender and youth empowerment in policy and practice',
+  'Evidence translation from research to policy implementation',
+  'South-South collaboration and regional leadership in innovation',
+  'Health professionals’ education including transformative teaching methods and competency-based training',
+];
+
+// Endpoint to get tracks and topics for frontend
+router.get('/tracks', (req, res) => {
+  res.json({ tracks: TRACKS, crossCuttingThemes: CROSS_CUTTING_THEMES });
+});
+
 const router = express.Router();
 
 // CREATE abstract/paper submission
 router.post('/', validateAbstract, async (req, res) => {
   try {
+
     const {
       title,
       abstract,
@@ -16,16 +120,41 @@ router.post('/', validateAbstract, async (req, res) => {
       corresponding_author_email,
       submission_type,
       track,
+      subcategory, // new field for topic/subcategory
+      cross_cutting_themes = [], // optional
       file_url,
-      submitted_by
+      submitted_by,
+      format // oral or poster
     } = req.body;
 
     // Validate required fields
-    if (!title || !abstract || !authors || !corresponding_author_email) {
+    if (!title || !abstract || !authors || !corresponding_author_email || !track || !subcategory || !format) {
       return res.status(400).json({ 
-        error: 'Title, abstract, authors, and corresponding author email are required' 
+        error: 'Title, abstract, authors, corresponding author email, track, subcategory, and format are required' 
       });
     }
+
+    // Validate track and subcategory
+    const trackObj = TRACKS.find(t => t.value === track || t.name === track);
+    if (!trackObj) {
+      return res.status(400).json({ error: 'Invalid track' });
+    }
+    if (!trackObj.topics.includes(subcategory)) {
+      return res.status(400).json({ error: 'Invalid subcategory for selected track' });
+    }
+
+    // Validate abstract structure (Background, Methods, Findings, Conclusion)
+    const structureRegex = /(Background:|BACKGROUND:)[\s\S]*?(Methods:|METHODS:)[\s\S]*?(Findings:|FINDINGS:)[\s\S]*?(Conclusion:|CONCLUSION:)/;
+    if (!structureRegex.test(abstract)) {
+      return res.status(400).json({ error: 'Abstract must include Background, Methods, Findings, and Conclusion sections.' });
+    }
+
+    // Validate word count (max 300 words)
+    const wordCount = abstract.trim().split(/\s+/).length;
+    if (wordCount > 300) {
+      return res.status(400).json({ error: 'Abstract must not exceed 300 words.' });
+    }
+
 
     const result = await pool.query(
       `INSERT INTO abstracts(
@@ -36,12 +165,15 @@ router.post('/', validateAbstract, async (req, res) => {
         corresponding_author_email, 
         submission_type, 
         track, 
+        subcategory, 
+        cross_cutting_themes, 
         file_url, 
         submitted_by,
+        format,
         status,
         created_at,
         updated_at
-      ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *`,
+      ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *`,
       [
         title, 
         abstract, 
@@ -50,8 +182,11 @@ router.post('/', validateAbstract, async (req, res) => {
         corresponding_author_email, 
         submission_type || 'abstract', 
         track, 
+        subcategory, 
+        JSON.stringify(cross_cutting_themes),
         file_url, 
         submitted_by,
+        format,
         'submitted'
       ]
     );
