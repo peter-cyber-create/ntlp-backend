@@ -1,3 +1,22 @@
+// Manual payment instructions endpoint
+router.get('/payment-info', (req, res) => {
+  res.json({
+    instructions: `To complete your registration, please make a payment to the following account and upload your proof of payment in your profile or email it to the conference organizers.`,
+    account_details: {
+      bank_name: 'Example Bank Ltd.',
+      account_name: 'NCD Conference Organizing Committee',
+      account_number: '1234567890',
+      branch: 'Gulu City',
+      swift_code: 'EXAMPLExx',
+      currency: 'UGX',
+      note: 'Include your full name and registration ID as payment reference.'
+    },
+    contact: {
+      phone: '+256772524474',
+      email: 'david.kitara@gu.ac.ug'
+    }
+  });
+});
 // backend/routes/abstracts.js
 import express from 'express';
 import { pool } from '../config/db.js';
