@@ -31,26 +31,26 @@ router.post('/', validateReview, async (req, res) => {
     }
 
     // Check if abstract exists
-    const abstractExists = await pool.query(
-      'SELECT id FROM abstracts WHERE id = $1',
+    const [abstractRows] = await pool.query(
+      'SELECT id FROM abstracts WHERE id = ?',
       [abstract_id]
     );
 
-    if (abstractExists.rows.length === 0) {
+    if (abstractRows.length === 0) {
       return res.status(404).json({ error: 'Abstract not found' });
     }
 
     // Check if reviewer has already reviewed this abstract
-    const existingReview = await pool.query(
-      'SELECT id FROM reviews WHERE abstract_id = $1 AND reviewer_email = $2',
+    const [existingReviewRows] = await pool.query(
+      'SELECT id FROM reviews WHERE abstract_id = ? AND reviewer_email = ?',
       [abstract_id, reviewer_email]
     );
 
-    if (existingReview.rows.length > 0) {
+    if (existingReviewRows.length > 0) {
       return res.status(400).json({ error: 'You have already reviewed this abstract' });
     }
 
-    const result = await pool.query(
+    const insertQuery =
       `INSERT INTO reviews(
         abstract_id, 
         reviewer_name, 
@@ -61,9 +61,11 @@ router.post('/', validateReview, async (req, res) => {
         detailed_feedback,
         created_at,
         updated_at
-      ) VALUES($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *`,
-      [abstract_id, reviewer_name, reviewer_email, score, comments, recommendation, JSON.stringify(detailed_feedback || {})]
-    );
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
+
+    const [insertResult] = await pool.query(insertQuery, [
+      abstract_id, reviewer_name, reviewer_email, score, comments, recommendation, JSON.stringify(detailed_feedback || {})
+    ]);
 
     // Update abstract status to under_review if it's still submitted
     await pool.query(
@@ -73,9 +75,12 @@ router.post('/', validateReview, async (req, res) => {
          ELSE status
        END,
        updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1`,
+       WHERE id = ?`,
       [abstract_id]
     );
+
+    // Fetch the inserted review
+    const [rows] = await pool.query('SELECT * FROM reviews WHERE id = ?', [insertResult.insertId]);
 
     res.status(201).json({
       message: 'Review submitted successfully',

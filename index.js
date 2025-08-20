@@ -76,7 +76,8 @@ app.get('/api', (req, res) => {
 });
 
 // API Routes
-import paymentsRoutes from './routes/payments.js';
+// Payment routes are disabled. Manual payment instructions are provided instead.
+// import paymentsRoutes from './routes/payments.js';
 // ...existing code...
 app.use('/api/registrations', userRoutes);  // Main registration CRUD
 app.use('/api/users', userRoutes);          // Alternative alias for backward compatibility
@@ -89,7 +90,7 @@ app.use('/api/abstracts', abstractRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/payments', paymentsRoutes);
+// app.use('/api/payments', paymentsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

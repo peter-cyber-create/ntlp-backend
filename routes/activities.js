@@ -23,7 +23,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Title and description are required' });
     }
 
-    const result = await pool.query(
+    const insertQuery =
       `INSERT INTO activities(
         title, 
         description, 
@@ -35,11 +35,13 @@ router.post('/', async (req, res) => {
         category,
         created_at,
         updated_at
-      ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *`,
-      [title, description, date, time, location, capacity, registration_required, category]
-    );
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
 
-    res.status(201).json(result.rows[0]);
+    const [result] = await pool.query(insertQuery, [title, description, date, time, location, capacity, registration_required, category]);
+
+    // Fetch the inserted row
+    const [rows] = await pool.query('SELECT * FROM activities WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
   } catch (error) {
     console.error('Error creating activity:', error);
     res.status(500).json({ error: 'Internal server error' });

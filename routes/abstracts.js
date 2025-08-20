@@ -1,4 +1,12 @@
-// Manual payment instructions endpoint
+// backend/routes/abstracts.js
+import express from 'express';
+import { pool } from '../config/db.js';
+import { validateAbstract, validateAbstractStatus } from '../middleware/validation.js';
+
+const router = express.Router();
+
+// Manual payment instructions endpoint (must be after router is declared)
+
 router.get('/payment-info', (req, res) => {
   res.json({
     instructions: `To complete your registration, please make a payment to the following account and upload your proof of payment in your profile or email it to the conference organizers.`,
@@ -17,10 +25,6 @@ router.get('/payment-info', (req, res) => {
     }
   });
 });
-// backend/routes/abstracts.js
-import express from 'express';
-import { pool } from '../config/db.js';
-import { validateAbstract, validateAbstractStatus } from '../middleware/validation.js';
 
 // Conference tracks and subcategories/topics
 const TRACKS = [
@@ -125,7 +129,26 @@ router.get('/tracks', (req, res) => {
   res.json({ tracks: TRACKS, crossCuttingThemes: CROSS_CUTTING_THEMES });
 });
 
-const router = express.Router();
+
+// Manual payment instructions endpoint (must be after router is declared and after all other routes)
+router.get('/payment-info', (req, res) => {
+  res.json({
+    instructions: `To complete your registration, please make a payment to the following account and upload your proof of payment in your profile or email it to the conference organizers.`,
+    account_details: {
+      bank_name: 'Example Bank Ltd.',
+      account_name: 'NCD Conference Organizing Committee',
+      account_number: '1234567890',
+      branch: 'Gulu City',
+      swift_code: 'EXAMPLExx',
+      currency: 'UGX',
+      note: 'Include your full name and registration ID as payment reference.'
+    },
+    contact: {
+      phone: '+256772524474',
+      email: 'david.kitara@gu.ac.ug'
+    }
+  });
+});
 
 // CREATE abstract/paper submission
 router.post('/', validateAbstract, async (req, res) => {
@@ -175,126 +198,47 @@ router.post('/', validateAbstract, async (req, res) => {
     }
 
 
-    const result = await pool.query(
+
+    const insertQuery =
       `INSERT INTO abstracts(
-        title, 
-        abstract, 
-        keywords, 
-        authors, 
-        corresponding_author_email, 
-        submission_type, 
-        track, 
-        subcategory, 
-        cross_cutting_themes, 
-        file_url, 
+        title,
+        abstract,
+        keywords,
+        authors,
+        corresponding_author_email,
+        submission_type,
+        track,
+        subcategory,
+        cross_cutting_themes,
+        file_url,
         submitted_by,
         format,
         status,
         created_at,
         updated_at
-      ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING *`,
-      [
-        title, 
-        abstract, 
-        JSON.stringify(keywords || []), 
-        JSON.stringify(authors), 
-        corresponding_author_email, 
-        submission_type || 'abstract', 
-        track, 
-        subcategory, 
-        JSON.stringify(cross_cutting_themes),
-        file_url, 
-        submitted_by,
-        format,
-        'submitted'
-      ]
-    );
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
 
-    res.status(201).json({
-      message: 'Abstract submitted successfully',
-      abstract: result.rows[0]
-    });
+    const [result] = await pool.query(insertQuery, [
+      title,
+      abstract,
+      JSON.stringify(keywords || []),
+      JSON.stringify(authors),
+      corresponding_author_email,
+      submission_type || 'abstract',
+      track,
+      subcategory,
+      JSON.stringify(cross_cutting_themes),
+      file_url,
+      submitted_by,
+      format,
+      'submitted'
+    ]);
+
+    // Fetch the inserted row
+    const [rows] = await pool.query('SELECT * FROM abstracts WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
   } catch (error) {
     console.error('Error creating abstract:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// READ - Get all abstracts (with filtering)
-router.get('/', async (req, res) => {
-  try {
-    const { 
-      status, 
-      track, 
-      submission_type, 
-      search,
-      page = 1, 
-      limit = 20 
-    } = req.query;
-
-    let query = `
-      SELECT a.*, 
-        COUNT(*) OVER() as total_count
-      FROM abstracts a
-    `;
-    let params = [];
-    const conditions = [];
-
-    // If no status filter is provided, default to showing all except deleted/archived (if such statuses exist)
-    if (status) {
-      conditions.push(`a.status = $${params.length + 1}`);
-      params.push(status);
-    } else {
-      // Show all abstracts, including 'submitted', unless you want to exclude certain statuses
-      // If you want to exclude deleted/archived, add: conditions.push(`a.status != 'deleted' AND a.status != 'archived'`);
-    }
-
-    if (track) {
-      conditions.push(`a.track = $${params.length + 1}`);
-      params.push(track);
-    }
-
-    if (submission_type) {
-      conditions.push(`a.submission_type = $${params.length + 1}`);
-      params.push(submission_type);
-    }
-
-    if (search) {
-      conditions.push(`(a.title ILIKE $${params.length + 1} OR a.abstract ILIKE $${params.length + 1})`);
-      params.push(`%${search}%`);
-    }
-
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
-
-    query += ` ORDER BY a.created_at DESC 
-               LIMIT $${params.length + 1} 
-               OFFSET $${params.length + 2}`;
-    
-    params.push(parseInt(limit));
-    params.push((parseInt(page) - 1) * parseInt(limit));
-
-    const result = await pool.query(query, params);
-    
-    const totalCount = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
-    const totalPages = Math.ceil(totalCount / parseInt(limit));
-
-    res.json({
-      abstracts: result.rows.map(row => {
-        const { total_count, ...abstract } = row;
-        return abstract;
-      }),
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages,
-        totalCount,
-        hasNext: parseInt(page) < totalPages,
-        hasPrev: parseInt(page) > 1
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching abstracts:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

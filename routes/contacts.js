@@ -38,27 +38,23 @@ router.get('/', async (req, res) => {
             LIMIT $1 OFFSET $2
         `;
         
-        const contactsResult = await pool.query(contactsQuery, [limit, offset]);
-        
+        const [contactsRows] = await pool.query(contactsQuery, [limit, offset]);
         // Get total count
-        const countResult = await pool.query('SELECT COUNT(*) FROM contacts');
-        const total = parseInt(countResult.rows[0].count);
-        
+        const [countRows] = await pool.query('SELECT COUNT(*) as count FROM contacts');
+        const total = parseInt(countRows[0].count);
         // Get stats
         const statsQuery = `
             SELECT 
                 COUNT(*) as total,
                 COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
                 COUNT(CASE WHEN status = 'responded' THEN 1 END) as responded,
-                COUNT(CASE WHEN created_at >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as this_week
+                COUNT(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) THEN 1 END) as this_week
             FROM contacts
         `;
-        
-        const statsResult = await pool.query(statsQuery);
-        const stats = statsResult.rows[0];
-        
+        const [statsRows] = await pool.query(statsQuery);
+        const stats = statsRows[0];
         res.json({
-            contacts: contactsResult.rows,
+            contacts: contactsRows,
             pagination: {
                 page,
                 limit,
