@@ -51,7 +51,7 @@ router.post('/', (req, res, next) => {
       status
     } = req.body;
 
-    const result = await pool.query(
+    const [result] = await pool.query(
       `INSERT INTO registrations(
         first_name, 
         last_name, 
@@ -67,7 +67,7 @@ router.post('/', (req, res, next) => {
         dietary_requirements, 
         special_needs, 
         status
-      ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         first_name,
         last_name,
@@ -85,10 +85,12 @@ router.post('/', (req, res, next) => {
         status || 'pending'
       ]
     );
-
-    return successResponse(res, result.rows[0], 'Registration created successfully', {
+    // Fetch the inserted row
+    const [rows] = await pool.query('SELECT * FROM registrations WHERE id = ?', [result.insertId]);
+    const newRegistration = rows[0];
+    return successResponse(res, newRegistration, 'Registration created successfully', {
       action: 'view_registration',
-      url: `/registrations/${result.rows[0].id}`
+      url: `/registrations/${newRegistration.id}`
     });
   } catch (error) {
     console.error('Error creating user:', error);
