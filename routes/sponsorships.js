@@ -18,6 +18,18 @@ router.post('/', async (req, res) => {
       selectedPackage
     } = req.body;
 
+    // Explicit validation for required fields
+    const missingFields = [];
+    if (!companyName) missingFields.push('companyName');
+    if (!contactPerson) missingFields.push('contactPerson');
+    if (!email) missingFields.push('email');
+    if (!selectedPackage) missingFields.push('selectedPackage');
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        error: `Missing required fields: ${missingFields.join(', ')}`
+      });
+    }
+
     const insertQuery =
       `INSERT INTO sponsorships (
         company_name,
