@@ -30,6 +30,19 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Validate package type
+    const validPackages = [
+      'Platinum Sponsor',
+      'Gold Sponsor',
+      'Silver Sponsor',
+      'Bronze Sponsor'
+    ];
+    if (!validPackages.includes(selectedPackage)) {
+      return res.status(400).json({
+        error: 'Invalid sponsorship package type'
+      });
+    }
+
     const insertQuery =
       `INSERT INTO sponsorships (
         company_name,
