@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     location VARCHAR(255),
     session_type VARCHAR(100) CHECK (session_type IN ('keynote', 'presentation', 'panel', 'workshop', 'poster', 'break')),
     track VARCHAR(100),
-    speaker_ids JSONB, -- Array of speaker IDs
+    speaker_ids JSON, -- Array of speaker IDs
     capacity INTEGER,
     registration_required BOOLEAN DEFAULT false,
     current_registrations INTEGER DEFAULT 0,
@@ -107,8 +107,8 @@ CREATE TABLE IF NOT EXISTS abstracts (
     id SERIAL PRIMARY KEY,
     title VARCHAR(500) NOT NULL,
     abstract TEXT NOT NULL,
-    keywords JSONB, -- Array of keywords
-    authors JSONB NOT NULL, -- Array of author objects with name, email, affiliation
+    keywords JSON, -- Array of keywords
+    authors JSON NOT NULL, -- Array of author objects with name, email, affiliation
     corresponding_author_email VARCHAR(255) NOT NULL,
     submission_type VARCHAR(50) DEFAULT 'abstract' CHECK (submission_type IN ('abstract', 'full_paper', 'poster', 'demo')),
     track VARCHAR(100), -- Research track (e.g., 'machine_learning', 'linguistics', 'applications')
@@ -125,13 +125,13 @@ CREATE TABLE IF NOT EXISTS abstracts (
 -- Create reviews table for peer review process
 CREATE TABLE IF NOT EXISTS reviews (
     id SERIAL PRIMARY KEY,
-    abstract_id INTEGER REFERENCES abstracts(id) ON DELETE CASCADE,
+    abstract_id BIGINT UNSIGNED REFERENCES abstracts(id) ON DELETE CASCADE,
     reviewer_name VARCHAR(255) NOT NULL,
     reviewer_email VARCHAR(255) NOT NULL,
     score INTEGER CHECK (score >= 1 AND score <= 10),
     comments TEXT,
     recommendation VARCHAR(50) CHECK (recommendation IN ('accept', 'reject', 'minor_revision', 'major_revision')),
-    detailed_feedback JSONB, -- Structured feedback (originality, clarity, significance, etc.)
+    detailed_feedback JSON, -- Structured feedback (originality, clarity, significance, etc.)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(abstract_id, reviewer_email) -- One review per reviewer per abstract
@@ -140,69 +140,86 @@ CREATE TABLE IF NOT EXISTS reviews (
 -- Create session_registrations table (many-to-many relationship)
 CREATE TABLE IF NOT EXISTS session_registrations (
     id SERIAL PRIMARY KEY,
-    session_id INTEGER REFERENCES sessions(id) ON DELETE CASCADE,
-    registration_id INTEGER REFERENCES registrations(id) ON DELETE CASCADE,
+    session_id BIGINT UNSIGNED,
+    registration_id BIGINT UNSIGNED,
     registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(session_id, registration_id)
+    UNIQUE(session_id, registration_id),
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+    FOREIGN KEY (registration_id) REFERENCES registrations(id) ON DELETE CASCADE
 );
 
 -- Create activity_registrations table (many-to-many relationship)
 CREATE TABLE IF NOT EXISTS activity_registrations (
     id SERIAL PRIMARY KEY,
-    activity_id INTEGER REFERENCES activities(id) ON DELETE CASCADE,
-    registration_id INTEGER REFERENCES registrations(id) ON DELETE CASCADE,
+    activity_id BIGINT UNSIGNED,
+    registration_id BIGINT UNSIGNED,
     registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(activity_id, registration_id)
+    UNIQUE(activity_id, registration_id),
+    FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE,
+    FOREIGN KEY (registration_id) REFERENCES registrations(id) ON DELETE CASCADE
 );
 
 -- Create abstract_sessions table to link accepted abstracts to presentation sessions
 CREATE TABLE IF NOT EXISTS abstract_sessions (
     id SERIAL PRIMARY KEY,
-    abstract_id INTEGER REFERENCES abstracts(id) ON DELETE CASCADE,
-    session_id INTEGER REFERENCES sessions(id) ON DELETE CASCADE,
+    abstract_id BIGINT UNSIGNED,
+    session_id BIGINT UNSIGNED,
     presentation_order INTEGER,
     presentation_duration INTEGER DEFAULT 15, -- minutes
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(abstract_id, session_id)
+    UNIQUE(abstract_id, session_id),
+    FOREIGN KEY (abstract_id) REFERENCES abstracts(id) ON DELETE CASCADE,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
 );
 
--- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_registrations_email ON registrations(email);
 CREATE INDEX IF NOT EXISTS idx_registrations_status ON registrations(status);
-CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
-CREATE INDEX IF NOT EXISTS idx_sessions_track ON sessions(track);
-CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(date);
-CREATE INDEX IF NOT EXISTS idx_activities_category ON activities(category);
-CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(published);
-CREATE INDEX IF NOT EXISTS idx_announcements_priority ON announcements(priority);
-CREATE INDEX IF NOT EXISTS idx_abstracts_status ON abstracts(status);
-CREATE INDEX IF NOT EXISTS idx_abstracts_track ON abstracts(track);
-CREATE INDEX IF NOT EXISTS idx_abstracts_submission_type ON abstracts(submission_type);
-CREATE INDEX IF NOT EXISTS idx_abstracts_corresponding_author ON abstracts(corresponding_author_email);
-CREATE INDEX IF NOT EXISTS idx_reviews_abstract_id ON reviews(abstract_id);
-CREATE INDEX IF NOT EXISTS idx_reviews_reviewer_email ON reviews(reviewer_email);
-CREATE INDEX IF NOT EXISTS idx_reviews_recommendation ON reviews(recommendation);
+-- CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
+-- CREATE INDEX IF NOT EXISTS idx_sessions_track ON sessions(track);
+-- CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(date);
+-- CREATE INDEX IF NOT EXISTS idx_activities_category ON activities(category);
+-- CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(published);
+-- CREATE INDEX IF NOT EXISTS idx_announcements_priority ON announcements(priority);
+-- CREATE INDEX IF NOT EXISTS idx_abstracts_status ON abstracts(status);
+-- CREATE INDEX IF NOT EXISTS idx_abstracts_track ON abstracts(track);
+-- CREATE INDEX IF NOT EXISTS idx_abstracts_submission_type ON abstracts(submission_type);
+-- CREATE INDEX IF NOT EXISTS idx_abstracts_corresponding_author ON abstracts(corresponding_author_email);
+-- CREATE INDEX IF NOT EXISTS idx_reviews_abstract_id ON reviews(abstract_id);
+-- CREATE INDEX IF NOT EXISTS idx_reviews_reviewer_email ON reviews(reviewer_email);
+-- CREATE INDEX IF NOT EXISTS idx_reviews_recommendation ON reviews(recommendation);
+-- CREATE INDEX IF NOT EXISTS idx_sessions_track ON sessions(track);
+-- CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(date);
+-- CREATE INDEX IF NOT EXISTS idx_activities_category ON activities(category);
+-- CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(published);
+-- CREATE INDEX IF NOT EXISTS idx_announcements_priority ON announcements(priority);
+-- CREATE INDEX IF NOT EXISTS idx_abstracts_status ON abstracts(status);
+-- CREATE INDEX IF NOT EXISTS idx_abstracts_track ON abstracts(track);
+-- CREATE INDEX IF NOT EXISTS idx_abstracts_submission_type ON abstracts(submission_type);
+-- CREATE INDEX IF NOT EXISTS idx_abstracts_corresponding_author ON abstracts(corresponding_author_email);
+-- CREATE INDEX IF NOT EXISTS idx_reviews_abstract_id ON reviews(abstract_id);
+-- CREATE INDEX IF NOT EXISTS idx_reviews_reviewer_email ON reviews(reviewer_email);
+-- CREATE INDEX IF NOT EXISTS idx_reviews_recommendation ON reviews(recommendation);
 
 -- Create full-text search indexes
-CREATE INDEX IF NOT EXISTS idx_abstracts_title_search ON abstracts USING gin(to_tsvector('english', title));
-CREATE INDEX IF NOT EXISTS idx_abstracts_content_search ON abstracts USING gin(to_tsvector('english', abstract));
+-- CREATE INDEX IF NOT EXISTS idx_abstracts_title_search ON abstracts USING gin(to_tsvector('english', title));
+-- CREATE INDEX IF NOT EXISTS idx_abstracts_content_search ON abstracts USING gin(to_tsvector('english', abstract));
 
--- Create triggers to update the updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
+-- Create triggers to update the updated_at timestamp (PostgreSQL only, commented out for MariaDB/MySQL)
+-- CREATE OR REPLACE FUNCTION update_updated_at_column()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--     NEW.updated_at = CURRENT_TIMESTAMP;
+--     RETURN NEW;
+-- END;
+-- $$ language 'plpgsql';
 
-CREATE TRIGGER update_registrations_updated_at BEFORE UPDATE ON registrations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_activities_updated_at BEFORE UPDATE ON activities FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_speakers_updated_at BEFORE UPDATE ON speakers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_sessions_updated_at BEFORE UPDATE ON sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_announcements_updated_at BEFORE UPDATE ON announcements FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_abstracts_updated_at BEFORE UPDATE ON abstracts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- CREATE TRIGGER update_registrations_updated_at BEFORE UPDATE ON registrations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- CREATE TRIGGER update_activities_updated_at BEFORE UPDATE ON activities FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- CREATE TRIGGER update_speakers_updated_at BEFORE UPDATE ON speakers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- CREATE TRIGGER update_sessions_updated_at BEFORE UPDATE ON sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- CREATE TRIGGER update_announcements_updated_at BEFORE UPDATE ON announcements FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- CREATE TRIGGER update_abstracts_updated_at BEFORE UPDATE ON abstracts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Contact messages table
 CREATE TABLE contacts (
@@ -215,8 +232,8 @@ CREATE TABLE contacts (
     message TEXT NOT NULL,
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'responded', 'closed')),
     response_message TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indexes for contacts
@@ -225,4 +242,4 @@ CREATE INDEX idx_contacts_status ON contacts(status);
 CREATE INDEX idx_contacts_created_at ON contacts(created_at DESC);
 
 -- Trigger for contacts
-CREATE TRIGGER update_contacts_updated_at BEFORE UPDATE ON contacts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- CREATE TRIGGER update_contacts_updated_at BEFORE UPDATE ON contacts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

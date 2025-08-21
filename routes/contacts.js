@@ -82,20 +82,16 @@ router.get('/', async (req, res) => {
 router.post('/', validateContact, async (req, res) => {
     try {
         console.log('Creating new contact:', req.body);
-        
         const { name, email, phone, organization, subject, message } = req.body;
-        
         const query = `
             INSERT INTO contacts (name, email, phone, organization, subject, message, status, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, 'pending', NOW(), NOW())
-            RETURNING *
+            VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())
         `;
-        
         const values = [name, email, phone || null, organization || null, subject, message];
-        const result = await pool.query(query, values);
-        
-        const newContact = result.rows[0];
-        
+        const [result] = await pool.query(query, values);
+        // Fetch the inserted row
+        const [rows] = await pool.query('SELECT * FROM contacts WHERE id = ?', [result.insertId]);
+        const newContact = rows[0];
         // Send email notifications asynchronously (don't wait for them)
         setImmediate(async () => {
             try {
@@ -105,12 +101,10 @@ router.post('/', validateContact, async (req, res) => {
                 console.error('Email notification error:', emailError);
             }
         });
-        
         return successResponse(res, {
             contact: newContact,
             info: 'Confirmation email will be sent shortly'
         }, 'Contact message submitted successfully', 201);
-        
     } catch (error) {
         console.error('Error creating contact:', error);
         return errorResponse(res, 'Failed to submit contact message', 500);
