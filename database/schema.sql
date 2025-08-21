@@ -1,3 +1,17 @@
+-- Create sponsorships table for sponsor applications
+CREATE TABLE IF NOT EXISTS sponsorships (
+    id SERIAL PRIMARY KEY,
+    company_name VARCHAR(255) NOT NULL,
+    contact_person VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(50),
+    website VARCHAR(255),
+    industry VARCHAR(255),
+    special_requirements TEXT,
+    selected_package VARCHAR(50) NOT NULL CHECK (selected_package IN ('Platinum Sponsor', 'Gold Sponsor', 'Silver Sponsor', 'Bronze Sponsor')),
+    message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 -- Database setup for NTLP Conference Management System
 -- Run this script to create all necessary tables
 
