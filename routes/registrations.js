@@ -15,52 +15,47 @@ router.post('/sessions/:sessionId', async (req, res) => {
     }
 
     // Check if session exists and has capacity
-    const sessionResult = await pool.query(
-      'SELECT * FROM sessions WHERE id = $1',
+    const [sessionRows] = await pool.query(
+      'SELECT * FROM sessions WHERE id = ?',
       [sessionId]
     );
-
-    if (sessionResult.rows.length === 0) {
+    if (sessionRows.length === 0) {
       return res.status(404).json({ error: 'Session not found' });
     }
-
-    const session = sessionResult.rows[0];
-
+    const session = sessionRows[0];
     // Check current registrations
-    const countResult = await pool.query(
-      'SELECT COUNT(*) FROM session_registrations WHERE session_id = $1',
+    const [countRows] = await pool.query(
+      'SELECT COUNT(*) as count FROM session_registrations WHERE session_id = ?',
       [sessionId]
     );
-
-    const currentCount = parseInt(countResult.rows[0].count);
-
+    const currentCount = parseInt(countRows[0].count);
     if (session.capacity && currentCount >= session.capacity) {
       return res.status(400).json({ error: 'Session is full' });
     }
-
     // Check if already registered
-    const existingResult = await pool.query(
-      'SELECT * FROM session_registrations WHERE session_id = $1 AND registration_id = $2',
+    const [existingRows] = await pool.query(
+      'SELECT * FROM session_registrations WHERE session_id = ? AND registration_id = ?',
       [sessionId, registration_id]
     );
-
-    if (existingResult.rows.length > 0) {
+    if (existingRows.length > 0) {
       return res.status(400).json({ error: 'Already registered for this session' });
     }
-
     // Register for session
-    const result = await pool.query(
-      'INSERT INTO session_registrations (session_id, registration_id) VALUES ($1, $2) RETURNING *',
+    const [insertResult] = await pool.query(
+      'INSERT INTO session_registrations (session_id, registration_id) VALUES (?, ?)',
       [sessionId, registration_id]
     );
-
     // Update session registration count
     await pool.query(
-      'UPDATE sessions SET current_registrations = current_registrations + 1 WHERE id = $1',
+      'UPDATE sessions SET current_registrations = current_registrations + 1 WHERE id = ?',
       [sessionId]
     );
-
-    res.status(201).json(result.rows[0]);
+    // Fetch the inserted row
+    const [newRows] = await pool.query(
+      'SELECT * FROM session_registrations WHERE id = ?',
+      [insertResult.insertId]
+    );
+    res.status(201).json(newRows[0]);
   } catch (error) {
     console.error('Error registering for session:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -105,52 +100,47 @@ router.post('/activities/:activityId', async (req, res) => {
     }
 
     // Check if activity exists and has capacity
-    const activityResult = await pool.query(
-      'SELECT * FROM activities WHERE id = $1',
+    const [activityRows] = await pool.query(
+      'SELECT * FROM activities WHERE id = ?',
       [activityId]
     );
-
-    if (activityResult.rows.length === 0) {
+    if (activityRows.length === 0) {
       return res.status(404).json({ error: 'Activity not found' });
     }
-
-    const activity = activityResult.rows[0];
-
+    const activity = activityRows[0];
     // Check current registrations
-    const countResult = await pool.query(
-      'SELECT COUNT(*) FROM activity_registrations WHERE activity_id = $1',
+    const [countRows] = await pool.query(
+      'SELECT COUNT(*) as count FROM activity_registrations WHERE activity_id = ?',
       [activityId]
     );
-
-    const currentCount = parseInt(countResult.rows[0].count);
-
+    const currentCount = parseInt(countRows[0].count);
     if (activity.capacity && currentCount >= activity.capacity) {
       return res.status(400).json({ error: 'Activity is full' });
     }
-
     // Check if already registered
-    const existingResult = await pool.query(
-      'SELECT * FROM activity_registrations WHERE activity_id = $1 AND registration_id = $2',
+    const [existingRows] = await pool.query(
+      'SELECT * FROM activity_registrations WHERE activity_id = ? AND registration_id = ?',
       [activityId, registration_id]
     );
-
-    if (existingResult.rows.length > 0) {
+    if (existingRows.length > 0) {
       return res.status(400).json({ error: 'Already registered for this activity' });
     }
-
     // Register for activity
-    const result = await pool.query(
-      'INSERT INTO activity_registrations (activity_id, registration_id) VALUES ($1, $2) RETURNING *',
+    const [insertResult] = await pool.query(
+      'INSERT INTO activity_registrations (activity_id, registration_id) VALUES (?, ?)',
       [activityId, registration_id]
     );
-
     // Update activity registration count
     await pool.query(
-      'UPDATE activities SET current_registrations = current_registrations + 1 WHERE id = $1',
+      'UPDATE activities SET current_registrations = current_registrations + 1 WHERE id = ?',
       [activityId]
     );
-
-    res.status(201).json(result.rows[0]);
+    // Fetch the inserted row
+    const [newRows] = await pool.query(
+      'SELECT * FROM activity_registrations WHERE id = ?',
+      [insertResult.insertId]
+    );
+    res.status(201).json(newRows[0]);
   } catch (error) {
     console.error('Error registering for activity:', error);
     res.status(500).json({ error: 'Internal server error' });
