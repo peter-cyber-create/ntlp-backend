@@ -223,12 +223,27 @@ router.post('/', async (req, res) => {
       dietary_requirements
     } = req.body;
 
+    // Map frontend fields to DB columns
+    const dbData = {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      institution: organization || null,
+      phone: phone || null,
+      position: position || null,
+      country: district || null,
+      session_track: null, // Not provided by frontend
+      registration_type: registrationType,
+      dietary_requirements: dietary_requirements || null,
+      special_needs: specialRequirements || null
+    };
+
     // Validate required fields
     const missingFields = [];
-    if (!firstName) missingFields.push('firstName');
-    if (!lastName) missingFields.push('lastName');
-    if (!email) missingFields.push('email');
-    if (!registrationType) missingFields.push('registrationType');
+    if (!dbData.first_name) missingFields.push('firstName');
+    if (!dbData.last_name) missingFields.push('lastName');
+    if (!dbData.email) missingFields.push('email');
+    if (!dbData.registration_type) missingFields.push('registrationType');
     if (missingFields.length > 0) {
       return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
     }
@@ -236,20 +251,21 @@ router.post('/', async (req, res) => {
     // Insert registration into DB
     const insertQuery = `
       INSERT INTO registrations (
-        first_name, last_name, email, phone, organization, position, district, registration_type, special_requirements, dietary_requirements, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
+        first_name, last_name, email, institution, phone, position, country, session_track, registration_type, dietary_requirements, special_needs, status, payment_status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'unpaid', NOW(), NOW())
     `;
     const [result] = await pool.query(insertQuery, [
-      firstName,
-      lastName,
-      email,
-      phone || null,
-      organization || null,
-      position || null,
-      district || null,
-      registrationType,
-      specialRequirements || null,
-      dietary_requirements || null
+      dbData.first_name,
+      dbData.last_name,
+      dbData.email,
+      dbData.institution,
+      dbData.phone,
+      dbData.position,
+      dbData.country,
+      dbData.session_track,
+      dbData.registration_type,
+      dbData.dietary_requirements,
+      dbData.special_needs
     ]);
 
     // Fetch the inserted registration
