@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS registrations (
     dietary_requirements TEXT,
     special_needs TEXT,
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled', 'waitlist')),
-    payment_status VARCHAR(20) DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'paid', 'refunded')),
+    -- payment_status removed (restored to pre-payment integration)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

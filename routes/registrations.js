@@ -251,8 +251,8 @@ router.post('/', async (req, res) => {
     // Insert registration into DB
     const insertQuery = `
       INSERT INTO registrations (
-        first_name, last_name, email, institution, phone, position, country, session_track, registration_type, dietary_requirements, special_needs, status, payment_status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'unpaid', NOW(), NOW())
+        first_name, last_name, email, institution, phone, position, country, session_track, registration_type, dietary_requirements, special_needs, status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())
     `;
     const [result] = await pool.query(insertQuery, [
       dbData.first_name,
