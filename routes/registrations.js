@@ -207,4 +207,64 @@ router.get('/user/:registrationId', async (req, res) => {
   }
 });
 
+// Register for the conference (main registration form)
+router.post('/', async (req, res) => {
+  try {
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      organization,
+      position,
+      district,
+      registrationType,
+      specialRequirements,
+      dietary_requirements
+    } = req.body;
+
+    // Validate required fields
+    const missingFields = [];
+    if (!firstName) missingFields.push('firstName');
+    if (!lastName) missingFields.push('lastName');
+    if (!email) missingFields.push('email');
+    if (!registrationType) missingFields.push('registrationType');
+    if (missingFields.length > 0) {
+      return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
+    }
+
+    // Insert registration into DB
+    const insertQuery = `
+      INSERT INTO registrations (
+        first_name, last_name, email, phone, organization, position, district, registration_type, special_requirements, dietary_requirements, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
+    `;
+    const [result] = await pool.query(insertQuery, [
+      firstName,
+      lastName,
+      email,
+      phone || null,
+      organization || null,
+      position || null,
+      district || null,
+      registrationType,
+      specialRequirements || null,
+      dietary_requirements || null
+    ]);
+
+    // Fetch the inserted registration
+    const [rows] = await pool.query('SELECT * FROM registrations WHERE id = ?', [result.insertId]);
+    const newRegistration = rows[0];
+
+    // Respond with success
+    res.status(201).json({
+      message: 'Registration submitted successfully',
+      registration: newRegistration
+    });
+  } catch (error) {
+    console.error('Error submitting registration:', error);
+    res.status(500).json({ error: 'Failed to submit registration' });
+  }
+});
+
 export default router;
