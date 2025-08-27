@@ -4,7 +4,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
 import userRoutes from './routes/users.js';
-import registrationApi from './app/api/registrations.js';
 import activityRoutes from './routes/activities.js';
 import speakerRoutes from './routes/speakers.js';
 import sessionRoutes from './routes/sessions.js';
@@ -80,7 +79,7 @@ app.get('/api', (req, res) => {
 // Payment routes are disabled. Manual payment instructions are provided instead.
 // import paymentsRoutes from './routes/payments.js';
 // ...existing code...
-app.use('/api/registrations', registrationApi);  // Main registration CRUD
+// Removed invalid import of './app/api/registrations.js' (non-JS content)
 app.use('/api/users', userRoutes);          // Alternative alias for backward compatibility
 app.use('/api/activities', activityRoutes);
 app.use('/api/speakers', speakerRoutes);
