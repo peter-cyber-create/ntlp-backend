@@ -121,7 +121,7 @@ const CROSS_CUTTING_THEMES = [
   'Gender and youth empowerment in policy and practice',
   'Evidence translation from research to policy implementation',
   'South-South collaboration and regional leadership in innovation',
-  'Health professionals’ education including transformative teaching methods and competency-based training',
+  'Health professionals education including transformative teaching methods and competency-based training',
 ];
 
 // Endpoint to get tracks and topics for frontend
@@ -129,31 +129,9 @@ router.get('/tracks', (req, res) => {
   res.json({ tracks: TRACKS, crossCuttingThemes: CROSS_CUTTING_THEMES });
 });
 
-
-// Manual payment instructions endpoint (must be after router is declared and after all other routes)
-router.get('/payment-info', (req, res) => {
-  res.json({
-    instructions: `To complete your registration, please make a payment to the following account and upload your proof of payment in your profile or email it to the conference organizers.`,
-    account_details: {
-      bank_name: 'Example Bank Ltd.',
-      account_name: 'NCD Conference Organizing Committee',
-      account_number: '1234567890',
-      branch: 'Gulu City',
-      swift_code: 'EXAMPLExx',
-      currency: 'UGX',
-      note: 'Include your full name and registration ID as payment reference.'
-    },
-    contact: {
-      phone: '+256772524474',
-      email: 'david.kitara@gu.ac.ug'
-    }
-  });
-});
-
 // CREATE abstract/paper submission
 router.post('/', validateAbstract, async (req, res) => {
   try {
-
     const {
       title,
       abstract,
@@ -197,8 +175,6 @@ router.post('/', validateAbstract, async (req, res) => {
       return res.status(400).json({ error: 'Abstract must not exceed 300 words.' });
     }
 
-
-
     const insertQuery =
       `INSERT INTO abstracts(
         title,
@@ -216,7 +192,7 @@ router.post('/', validateAbstract, async (req, res) => {
         status,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
 
     const [result] = await pool.query(insertQuery, [
       title,
@@ -231,12 +207,27 @@ router.post('/', validateAbstract, async (req, res) => {
       file_url,
       submitted_by,
       format,
-      'submitted'
+    ]);
+
+    // Create form submission record
+    await pool.query(`
+      INSERT INTO form_submissions (
+        form_type, entity_id, submitted_by, submission_data, status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'submitted', NOW(), NOW())
+    `, [
+      'abstract',
+      result.insertId,
+      corresponding_author_email,
+      JSON.stringify(req.body)
     ]);
 
     // Fetch the inserted row
     const [rows] = await pool.query('SELECT * FROM abstracts WHERE id = ?', [result.insertId]);
-    res.status(201).json(rows[0]);
+    res.status(201).json({
+      message: 'Abstract submitted successfully and is under review',
+      abstract: rows[0],
+      status: 'submitted'
+    });
   } catch (error) {
     console.error('Error creating abstract:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -247,7 +238,7 @@ router.post('/', validateAbstract, async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(`
+    const [result] = await pool.query(`
       SELECT a.*, 
         COALESCE(
           json_agg(
@@ -265,15 +256,15 @@ router.get('/:id', async (req, res) => {
         ) as reviews
       FROM abstracts a
       LEFT JOIN reviews r ON a.id = r.abstract_id
-      WHERE a.id = $1
+      WHERE a.id = ?
       GROUP BY a.id
     `, [id]);
     
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return res.status(404).json({ error: 'Abstract not found' });
     }
     
-    res.json(result.rows[0]);
+    res.json(result[0]);
   } catch (error) {
     console.error('Error fetching abstract:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -292,23 +283,27 @@ router.put('/:id', async (req, res) => {
       corresponding_author_email,
       submission_type,
       track,
+      subcategory,
+      cross_cutting_themes,
       file_url,
       status
     } = req.body;
 
     const result = await pool.query(
       `UPDATE abstracts SET 
-        title = $1,
-        abstract = $2,
-        keywords = $3,
-        authors = $4,
-        corresponding_author_email = $5,
-        submission_type = $6,
-        track = $7,
-        file_url = $8,
-        status = $9,
+        title = ?,
+        abstract = ?,
+        keywords = ?,
+        authors = ?,
+        corresponding_author_email = ?,
+        submission_type = ?,
+        track = ?,
+        subcategory = ?,
+        cross_cutting_themes = ?,
+        file_url = ?,
+        status = ?,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $10 RETURNING *`,
+      WHERE id = ?`,
       [
         title,
         abstract,
@@ -317,19 +312,21 @@ router.put('/:id', async (req, res) => {
         corresponding_author_email,
         submission_type,
         track,
+        subcategory,
+        JSON.stringify(cross_cutting_themes || []),
         file_url,
         status,
         id
       ]
     );
 
-    if (result.rows.length === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Abstract not found' });
     }
 
     res.json({
       message: 'Abstract updated successfully',
-      abstract: result.rows[0]
+      abstract: { id, ...req.body }
     });
   } catch (error) {
     console.error('Error updating abstract:', error);
@@ -340,31 +337,44 @@ router.put('/:id', async (req, res) => {
 // BULK ACTIONS - Update multiple abstracts status (must be before parameterized routes)
 router.patch('/bulk/status', async (req, res) => {
   try {
-    const { ids, status, reviewer_comments } = req.body;
+    const { ids, status, admin_notes, review_comments } = req.body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: 'IDs array is required' });
     }
 
-    if (!['submitted', 'under_review', 'accepted', 'rejected', 'revision_required'].includes(status)) {
+    if (!['submitted', 'under_review', 'accepted', 'rejected', 'revision_required', 'approved'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    const placeholders = ids.map((_, index) => `$${index + 1}`).join(',');
-    const params = [...ids, status, reviewer_comments || null];
+    const placeholders = ids.map(() => '?').join(',');
+    const params = [...ids, status, admin_notes || null, review_comments || null];
 
     const result = await pool.query(
       `UPDATE abstracts SET 
-        status = $${ids.length + 1},
-        reviewer_comments = $${ids.length + 2},
+        status = ?,
+        admin_notes = ?,
+        reviewer_comments = ?,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id IN (${placeholders}) RETURNING *`,
+      WHERE id IN (${placeholders})`,
+      params
+    );
+
+    // Update form submissions
+    await pool.query(
+      `UPDATE form_submissions SET 
+        status = ?, 
+        admin_notes = ?, 
+        review_comments = ?,
+        reviewed_at = NOW(),
+        updated_at = NOW()
+      WHERE form_type = 'abstract' AND entity_id IN (${placeholders})`,
       params
     );
 
     res.json({
-      message: `${result.rows.length} abstracts updated successfully`,
-      updated: result.rows
+      message: `${result.affectedRows} abstracts updated successfully`,
+      updated: result.affectedRows
     });
   } catch (error) {
     console.error('Error bulk updating abstracts:', error);
@@ -381,16 +391,16 @@ router.delete('/bulk', async (req, res) => {
       return res.status(400).json({ error: 'IDs array is required' });
     }
 
-    const placeholders = ids.map((_, index) => `$${index + 1}`).join(',');
+    const placeholders = ids.map(() => '?').join(',');
     
     const result = await pool.query(
-      `DELETE FROM abstracts WHERE id IN (${placeholders}) RETURNING *`,
+      `DELETE FROM abstracts WHERE id IN (${placeholders})`,
       ids
     );
 
     res.json({
-      message: `${result.rows.length} abstracts deleted successfully`,
-      deleted: result.rows
+      message: `${result.affectedRows} abstracts deleted successfully`,
+      deleted: result.affectedRows
     });
   } catch (error) {
     console.error('Error bulk deleting abstracts:', error);
@@ -402,28 +412,40 @@ router.delete('/bulk', async (req, res) => {
 router.patch('/:id/status', validateAbstractStatus, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, reviewer_comments } = req.body;
+    const { status, admin_notes, review_comments } = req.body;
 
-    if (!['submitted', 'under_review', 'accepted', 'rejected', 'revision_required'].includes(status)) {
+    if (!['submitted', 'under_review', 'accepted', 'rejected', 'revision_required', 'approved'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
     const result = await pool.query(
       `UPDATE abstracts SET 
-        status = $1,
-        reviewer_comments = $2,
+        status = ?,
+        admin_notes = ?,
+        reviewer_comments = ?,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $3 RETURNING *`,
-      [status, reviewer_comments, id]
+      WHERE id = ?`,
+      [status, admin_notes, review_comments, id]
     );
 
-    if (result.rows.length === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Abstract not found' });
     }
 
+    // Update form submission status
+    await pool.query(`
+      UPDATE form_submissions SET 
+        status = ?, 
+        admin_notes = ?, 
+        review_comments = ?,
+        reviewed_at = NOW(),
+        updated_at = NOW()
+      WHERE form_type = 'abstract' AND entity_id = ?
+    `, [status, admin_notes, review_comments, id]);
+
     res.json({
       message: `Abstract status updated to ${status}`,
-      abstract: result.rows[0]
+      abstract: { id, status, admin_notes, review_comments }
     });
   } catch (error) {
     console.error('Error updating abstract status:', error);
@@ -437,18 +459,18 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
     
     // First delete associated reviews
-    await pool.query('DELETE FROM reviews WHERE abstract_id = $1', [id]);
+    await pool.query('DELETE FROM reviews WHERE abstract_id = ?', [id]);
     
     // Then delete the abstract
-    const result = await pool.query('DELETE FROM abstracts WHERE id = $1 RETURNING *', [id]);
+    const result = await pool.query('DELETE FROM abstracts WHERE id = ?', [id]);
     
-    if (result.rows.length === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Abstract not found' });
     }
     
     res.json({ 
       message: 'Abstract deleted successfully', 
-      deleted: result.rows[0] 
+      deleted: { id }
     });
   } catch (error) {
     console.error('Error deleting abstract:', error);
@@ -462,15 +484,15 @@ router.get('/track/:track', async (req, res) => {
     const { track } = req.params;
     const { status = 'accepted' } = req.query;
 
-    const result = await pool.query(
-      'SELECT * FROM abstracts WHERE track = $1 AND status = $2 ORDER BY title ASC',
+    const [result] = await pool.query(
+      'SELECT * FROM abstracts WHERE track = ? AND status = ? ORDER BY title ASC',
       [track, status]
     );
 
     res.json({
       track,
-      count: result.rows.length,
-      abstracts: result.rows
+      count: result.length,
+      abstracts: result
     });
   } catch (error) {
     console.error('Error fetching abstracts by track:', error);
@@ -478,24 +500,94 @@ router.get('/track/:track', async (req, res) => {
   }
 });
 
+// Get all abstracts with filtering and pagination (admin)
+router.get('/', async (req, res) => {
+  try {
+    const { 
+      status, 
+      track, 
+      search, 
+      page = 1, 
+      limit = 20,
+      sortBy = 'created_at',
+      sortOrder = 'DESC'
+    } = req.query;
+    
+    const offset = (page - 1) * limit;
+    
+    let whereClause = 'WHERE 1=1';
+    let params = [];
+    
+    if (status && status !== 'all') {
+      whereClause += ' AND status = ?';
+      params.push(status);
+    }
+    
+    if (track && track !== 'all') {
+      whereClause += ' AND track = ?';
+      params.push(track);
+    }
+    
+    if (search) {
+      whereClause += ' AND (title LIKE ? OR abstract LIKE ? OR corresponding_author_email LIKE ?)';
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+    
+    // Validate sort parameters
+    const allowedSortFields = ['created_at', 'updated_at', 'title', 'status', 'track'];
+    const allowedSortOrders = ['ASC', 'DESC'];
+    
+    if (!allowedSortFields.includes(sortBy)) sortBy = 'created_at';
+    if (!allowedSortOrders.includes(sortOrder.toUpperCase())) sortOrder = 'DESC';
+    
+    // Get total count
+    const [countResult] = await pool.query(
+      `SELECT COUNT(*) as total FROM abstracts ${whereClause}`,
+      params
+    );
+    const total = countResult[0].total;
+    
+    // Get abstracts with pagination
+    const [abstracts] = await pool.query(
+      `SELECT * FROM abstracts ${whereClause} ORDER BY ${sortBy} ${sortOrder} LIMIT ? OFFSET ?`,
+      [...params, parseInt(limit), offset]
+    );
+    
+    res.json({
+      abstracts,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching abstracts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get submission statistics
 router.get('/stats/overview', async (req, res) => {
   try {
-    const stats = await pool.query(`
+    const [stats] = await pool.query(`
       SELECT 
         COUNT(*) as total_submissions,
-        COUNT(*) FILTER (WHERE status = 'submitted') as submitted,
-        COUNT(*) FILTER (WHERE status = 'under_review') as under_review,
-        COUNT(*) FILTER (WHERE status = 'accepted') as accepted,
-        COUNT(*) FILTER (WHERE status = 'rejected') as rejected,
-        COUNT(*) FILTER (WHERE status = 'revision_required') as revision_required,
-        COUNT(*) FILTER (WHERE submission_type = 'abstract') as abstracts,
-        COUNT(*) FILTER (WHERE submission_type = 'full_paper') as full_papers,
-        COUNT(*) FILTER (WHERE submission_type = 'poster') as posters
+        COUNT(CASE WHEN status = 'submitted' THEN 1 END) as submitted,
+        COUNT(CASE WHEN status = 'under_review' THEN 1 END) as under_review,
+        COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected,
+        COUNT(CASE WHEN status = 'revision_required' THEN 1 END) as revision_required,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
+        COUNT(CASE WHEN submission_type = 'abstract' THEN 1 END) as abstracts,
+        COUNT(CASE WHEN submission_type = 'full_paper' THEN 1 END) as full_papers,
+        COUNT(CASE WHEN submission_type = 'poster' THEN 1 END) as posters
       FROM abstracts
     `);
 
-    const trackStats = await pool.query(`
+    const [trackStats] = await pool.query(`
       SELECT track, COUNT(*) as count
       FROM abstracts
       WHERE track IS NOT NULL
@@ -504,8 +596,8 @@ router.get('/stats/overview', async (req, res) => {
     `);
 
     res.json({
-      overview: stats.rows[0],
-      by_track: trackStats.rows
+      overview: stats[0],
+      by_track: trackStats
     });
   } catch (error) {
     console.error('Error fetching submission statistics:', error);

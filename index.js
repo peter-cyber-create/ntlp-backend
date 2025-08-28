@@ -12,6 +12,8 @@ import registrationRoutes from './routes/registrations.js';
 import abstractRoutes from './routes/abstracts.js';
 import reviewRoutes from './routes/reviews.js';
 import contactRoutes from './routes/contacts.js';
+import sponsorshipRoutes from './routes/sponsorships.js';
+import uploadRoutes from './routes/uploads.js';
 import adminRoutes from './routes/admin.js';
 import { rateLimit } from './middleware/auth.js';
 import { verifyEmailConfig } from './middleware/emailService.js';
@@ -59,6 +61,8 @@ app.get('/api', (req, res) => {
       abstracts: '/api/abstracts',
       reviews: '/api/reviews',
       contacts: '/api/contacts',
+      sponsorships: '/api/sponsorships',
+      uploads: '/api/uploads',
       admin: '/api/admin',
       'session-registrations': '/api/register/sessions',
       'activity-registrations': '/api/register/activities'
@@ -89,6 +93,8 @@ app.use('/api/register', registrationRoutes);  // Session/activity registrations
 app.use('/api/abstracts', abstractRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/contacts', contactRoutes);
+app.use('/api/sponsorships', sponsorshipRoutes);
+app.use('/api/uploads', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 // app.use('/api/payments', paymentsRoutes);
 
@@ -130,6 +136,8 @@ app.use('*', (req, res) => {
       '/api/abstracts',
       '/api/reviews',
       '/api/contacts',
+      '/api/sponsorships',
+      '/api/uploads',
       '/api/admin',
       '/api/register'
     ]

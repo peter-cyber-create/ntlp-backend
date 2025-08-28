@@ -39,7 +39,7 @@ router.post('/', async (req, res) => {
     ];
     if (!validPackages.includes(selectedPackage)) {
       return res.status(400).json({
-        error: 'Invalid sponsorship package type'
+        error: `Invalid sponsorship package type: ${selectedPackage}. Valid options are: ${validPackages.join(', ')}`
       });
     }
 
@@ -49,29 +49,42 @@ router.post('/', async (req, res) => {
         contact_person,
         email,
         phone,
-        website,
-        industry,
-        special_requirements,
-        selected_package,
+        package_type,
+        status,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+      ) VALUES (?, ?, ?, ?, ?, 'submitted', CURRENT_TIMESTAMP)`;
 
     const [result] = await pool.query(insertQuery, [
       companyName,
       contactPerson,
       email,
       phone,
-      website,
-      industry,
-      specialRequirements,
-      selectedPackage || null
+      selectedPackage
+    ]);
+
+    // Create form submission record for admin review
+    await pool.query(`
+      INSERT INTO form_submissions (
+        form_type, entity_id, submitted_by, submission_data, status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'submitted', NOW(), NOW())
+    `, [
+      'sponsorship',
+      result.insertId,
+      `${companyName} - ${contactPerson}`,
+      JSON.stringify({
+        companyName,
+        contactPerson,
+        email,
+        phone,
+        selectedPackage
+      })
     ]);
 
     // Fetch the inserted row
     const [rows] = await pool.query('SELECT * FROM sponsorships WHERE id = ?', [result.insertId]);
 
     res.status(201).json({
-      message: 'Sponsorship application submitted successfully',
+      message: 'Sponsorship application submitted successfully and is under review',
       sponsorship: rows[0]
     });
   } catch (error) {
