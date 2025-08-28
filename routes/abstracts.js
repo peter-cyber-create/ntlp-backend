@@ -1,6 +1,17 @@
 // backend/routes/abstracts.js
 import express from 'express';
-import { pool } from '../config/db.js';
+import mysql from 'mysql2/promise';
+
+const pool = mysql.createPool({
+  host: 'localhost',
+  port: 3306,
+  database: 'ntlp_conference',
+  user: 'root',
+  password: 'toor',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
 import { validateAbstract, validateAbstractStatus } from '../middleware/validation.js';
 
 const router = express.Router();

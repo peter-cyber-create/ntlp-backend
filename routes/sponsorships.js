@@ -1,6 +1,17 @@
 
 import express from 'express';
-import { pool } from '../config/db.js';
+import mysql from 'mysql2/promise';
+
+const pool = mysql.createPool({
+  host: 'localhost',
+  port: 3306,
+  database: 'ntlp_conference',
+  user: 'root',
+  password: 'toor',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
 
 const router = express.Router();
 
@@ -30,16 +41,23 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Validate package type
-    const validPackages = [
-      'Platinum Sponsor',
-      'Gold Sponsor',
-      'Silver Sponsor',
-      'Bronze Sponsor'
-    ];
-    if (!validPackages.includes(selectedPackage)) {
+    // Map display names to database values
+    const packageMapping = {
+      'Platinum Sponsor': 'platinum',
+      'Gold Sponsor': 'gold',
+      'Silver Sponsor': 'silver',
+      'Bronze Sponsor': 'bronze',
+      'platinum': 'platinum',
+      'gold': 'gold',
+      'silver': 'silver',
+      'bronze': 'bronze',
+      'custom': 'custom'
+    };
+    
+    const dbPackageType = packageMapping[selectedPackage];
+    if (!dbPackageType) {
       return res.status(400).json({
-        error: `Invalid sponsorship package type: ${selectedPackage}. Valid options are: ${validPackages.join(', ')}`
+        error: `Invalid sponsorship package type: ${selectedPackage}. Valid options are: Platinum Sponsor, Gold Sponsor, Silver Sponsor, Bronze Sponsor`
       });
     }
 
@@ -59,7 +77,7 @@ router.post('/', async (req, res) => {
       contactPerson,
       email,
       phone,
-      selectedPackage
+      dbPackageType
     ]);
 
     // Create form submission record for admin review

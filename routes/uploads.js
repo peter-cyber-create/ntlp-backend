@@ -1,7 +1,18 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
-import { pool } from '../config/db.js';
+import mysql from 'mysql2/promise';
+
+const pool = mysql.createPool({
+  host: 'localhost',
+  port: 3306,
+  database: 'ntlp_conference',
+  user: 'root',
+  password: 'toor',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
 import fs from 'fs';
 
 const router = express.Router();
