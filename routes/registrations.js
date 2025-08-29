@@ -2,16 +2,7 @@
 import express from 'express';
 import mysql from 'mysql2/promise';
 
-const pool = mysql.createPool({
-  host: 'localhost',
-  port: 3306,
-  database: 'ntlp_conference',
-  user: 'root',
-  password: 'toor',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+import { pool } from '../config/db.js';
 
 const router = express.Router();
 
@@ -247,26 +238,25 @@ router.post('/', async (req, res) => {
 
     // Map frontend fields to DB columns
     const dbData = {
-      first_name: firstName,
-      last_name: lastName,
+      firstName: firstName,
+      lastName: lastName,
       email,
-      institution: organization || null,
+      organization: organization || null,
       phone: phone || null,
       position: position || null,
-      country: district || null,
-      session_track: null, // Not provided by frontend
-      registration_type: registrationType,
+      district: district || null,
+      registrationType: registrationType,
       dietary_requirements: dietary_requirements || null,
-      special_needs: specialRequirements || null,
+      specialRequirements: specialRequirements || null,
       payment_proof_url: paymentProofUrl || null
     };
 
     // Validate required fields
     const missingFields = [];
-    if (!dbData.first_name) missingFields.push('firstName');
-    if (!dbData.last_name) missingFields.push('lastName');
+    if (!dbData.firstName) missingFields.push('firstName');
+    if (!dbData.lastName) missingFields.push('lastName');
     if (!dbData.email) missingFields.push('email');
-    if (!dbData.registration_type) missingFields.push('registrationType');
+    if (!dbData.registrationType) missingFields.push('registrationType');
     if (missingFields.length > 0) {
       return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
     }
@@ -283,24 +273,23 @@ router.post('/', async (req, res) => {
     // Insert registration into DB with 'submitted' status
     const insertQuery = `
       INSERT INTO registrations (
-        first_name, last_name, email, institution, phone, position, country, session_track, 
-        registration_type, payment_proof_url, payment_status, dietary_requirements, special_needs, status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', NOW(), NOW())
+        firstName, lastName, email, organization, phone, position, district, 
+        registrationType, payment_proof_url, payment_status, dietary_requirements, specialRequirements, status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', NOW(), NOW())
     `;
     const [result] = await pool.query(insertQuery, [
-      dbData.first_name,
-      dbData.last_name,
+      dbData.firstName,
+      dbData.lastName,
       dbData.email,
-      dbData.institution,
+      dbData.organization,
       dbData.phone,
       dbData.position,
-      dbData.country,
-      dbData.session_track,
-      dbData.registration_type,
+      dbData.district,
+      dbData.registrationType,
       dbData.payment_proof_url || null,
-      dbData.payment_proof_url ? 'pending' : 'pending',
+      'pending',
       dbData.dietary_requirements,
-      dbData.special_needs
+      dbData.specialRequirements
     ]);
 
     // Create form submission record
