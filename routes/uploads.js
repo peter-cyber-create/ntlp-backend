@@ -15,6 +15,8 @@ router.get('/', (req, res) => {
     endpoints: {
       'POST /payment-proof': 'Upload payment proof file',
       'GET /payment-proof/:fileId': 'Get file info',
+      'GET /payment-proof/:fileId/download': 'Download file by ID',
+      'GET /file/*': 'Download file by path',
       'PATCH /payment-proof/:fileId/status': 'Update file status (admin)',
       'DELETE /payment-proof/:fileId': 'Delete file (admin)'
     }
@@ -122,6 +124,39 @@ router.get('/payment-proof/:fileId', async (req, res) => {
   }
 });
 
+// GET /api/uploads/payment-proof/:fileId/download - Download file
+router.get('/payment-proof/:fileId/download', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    const [rows] = await pool.query('SELECT * FROM file_uploads WHERE id = ?', [fileId]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const file = rows[0];
+    const filePath = path.resolve(file.file_path);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found on disk' });
+    }
+    
+    // Set appropriate headers for download
+    res.setHeader('Content-Disposition', `attachment; filename="${file.original_name}"`);
+    res.setHeader('Content-Type', file.mime_type);
+    
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    res.status(500).json({ error: 'Failed to download file' });
+  }
+});
+
 // PATCH /api/uploads/payment-proof/:fileId/status - Update file status (admin only)
 router.patch('/payment-proof/:fileId/status', async (req, res) => {
   try {
@@ -181,6 +216,53 @@ router.delete('/payment-proof/:fileId', async (req, res) => {
   } catch (error) {
     console.error('Error deleting file:', error);
     res.status(500).json({ error: 'Failed to delete file' });
+  }
+});
+
+// GET /api/uploads/file/* - Download file by path (for admin use)
+router.get('/file/*', async (req, res) => {
+  try {
+    // Extract file path from URL
+    const filePath = req.params[0];
+    const fullPath = path.resolve(filePath);
+    
+    // Security check - ensure file is in uploads directory
+    const uploadsDir = path.resolve('uploads');
+    if (!fullPath.startsWith(uploadsDir)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Check if file exists
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Get file stats
+    const stats = fs.statSync(fullPath);
+    const fileName = path.basename(fullPath);
+    
+    // Set appropriate headers for download
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', stats.size);
+    
+    // Determine content type based on file extension
+    const ext = path.extname(fileName).toLowerCase();
+    let contentType = 'application/octet-stream';
+    if (ext === '.pdf') contentType = 'application/pdf';
+    else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+    else if (ext === '.png') contentType = 'image/png';
+    else if (ext === '.doc') contentType = 'application/msword';
+    else if (ext === '.docx') contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    
+    res.setHeader('Content-Type', contentType);
+    
+    // Stream the file
+    const fileStream = fs.createReadStream(fullPath);
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    res.status(500).json({ error: 'Failed to download file' });
   }
 });
 

@@ -1,5 +1,7 @@
 import express from "express";
 import { pool } from "../config/db.js";
+import path from 'path';
+import fs from 'fs';
 import { validateAbstractStatus } from "../middleware/validation.js";
 
 const TRACKS = [
@@ -216,6 +218,48 @@ router.get("/", async (req, res) => {
   } catch (error) {
     console.error("Error fetching abstracts:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /api/abstracts/download/:id - Download abstract file
+router.get("/download/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const [rows] = await pool.query(
+      "SELECT * FROM abstracts WHERE id = ?",
+      [id]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Abstract not found" });
+    }
+    
+    const abstract = rows[0];
+    
+    if (!abstract.file_url) {
+      return res.status(404).json({ error: "No file attached to this abstract" });
+    }
+    
+    const filePath = path.resolve(abstract.file_url);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "File not found on disk" });
+    }
+    
+    // Set appropriate headers for download
+    const fileName = abstract.fileName || `abstract-${abstract.id}.pdf`;
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Type', 'application/pdf');
+    
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    console.error("Error downloading abstract file:", error);
+    res.status(500).json({ error: "Failed to download file" });
   }
 });
 
