@@ -291,8 +291,8 @@ router.delete("/:id", async (req, res) => {
     
     // Delete from database
     await pool.query("DELETE FROM abstracts WHERE id = ?", [id]);
-    
-    res.json({ 
+
+    res.json({
       message: "Abstract deleted successfully",
       deletedId: id 
     });
@@ -336,7 +336,7 @@ router.patch("/:id/status", async (req, res) => {
       "SELECT * FROM abstracts WHERE id = ?",
       [id]
     );
-    
+
     res.json({
       message: "Abstract status updated successfully",
       abstract: updatedRows[0]
@@ -401,7 +401,7 @@ router.put("/:id", async (req, res) => {
       "SELECT * FROM abstracts WHERE id = ?",
       [id]
     );
-    
+
     res.json({
       message: "Abstract updated successfully",
       abstract: updatedRows[0]
