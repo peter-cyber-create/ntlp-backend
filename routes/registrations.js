@@ -1,6 +1,7 @@
 // backend/routes/registrations.js
 import express from 'express';
 import mysql from 'mysql2/promise';
+import fs from 'fs';
 
 import { pool } from '../config/db.js';
 
@@ -499,6 +500,147 @@ router.get('/stats/overview', async (req, res) => {
   } catch (error) {
     console.error('Error fetching registration statistics:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/register/:id - Delete registration
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First check if registration exists
+    const [rows] = await pool.query('SELECT * FROM registrations WHERE id = ?', [id]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+    
+    const registration = rows[0];
+    
+    // Delete payment proof file if it exists
+    if (registration.payment_proof_url && fs.existsSync(registration.payment_proof_url)) {
+      try {
+        fs.unlinkSync(registration.payment_proof_url);
+      } catch (fileError) {
+        console.warn('Could not delete payment proof file:', fileError);
+      }
+    }
+    
+    // Delete from database
+    await pool.query('DELETE FROM registrations WHERE id = ?', [id]);
+    
+    res.json({ 
+      message: 'Registration deleted successfully',
+      deletedId: id 
+    });
+    
+  } catch (error) {
+    console.error('Error deleting registration:', error);
+    res.status(500).json({ error: 'Failed to delete registration' });
+  }
+});
+
+// PATCH /api/register/:id/status - Update registration status
+router.patch('/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, adminNotes, reviewedBy } = req.body;
+    
+    // Validate status
+    const validStatuses = ['submitted', 'under_review', 'approved', 'rejected', 'waitlist', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    
+    // Check if registration exists
+    const [rows] = await pool.query('SELECT * FROM registrations WHERE id = ?', [id]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+    
+    // Update registration status
+    await pool.query(
+      'UPDATE registrations SET status = ?, admin_notes = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [status, adminNotes || null, reviewedBy || null, id]
+    );
+    
+    // Get updated registration
+    const [updatedRows] = await pool.query('SELECT * FROM registrations WHERE id = ?', [id]);
+    
+    res.json({
+      message: 'Registration status updated successfully',
+      registration: updatedRows[0]
+    });
+    
+  } catch (error) {
+    console.error('Error updating registration status:', error);
+    res.status(500).json({ error: 'Failed to update registration status' });
+  }
+});
+
+// PUT /api/register/:id - Update entire registration
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      firstName, 
+      lastName, 
+      email, 
+      phone, 
+      organization, 
+      position, 
+      registrationType,
+      dietary_requirements,
+      specialRequirements
+    } = req.body;
+    
+    // Check if registration exists
+    const [rows] = await pool.query('SELECT * FROM registrations WHERE id = ?', [id]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+    
+    // Update registration
+    await pool.query(
+      `UPDATE registrations SET 
+        firstName = ?, 
+        lastName = ?, 
+        email = ?, 
+        phone = ?, 
+        organization = ?, 
+        position = ?, 
+        registrationType = ?,
+        dietary_requirements = ?,
+        specialRequirements = ?,
+        updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?`,
+      [
+        firstName,
+        lastName,
+        email,
+        phone,
+        organization,
+        position,
+        registrationType,
+        dietary_requirements,
+        specialRequirements,
+        id
+      ]
+    );
+    
+    // Get updated registration
+    const [updatedRows] = await pool.query('SELECT * FROM registrations WHERE id = ?', [id]);
+    
+    res.json({
+      message: 'Registration updated successfully',
+      registration: updatedRows[0]
+    });
+    
+  } catch (error) {
+    console.error('Error updating registration:', error);
+    res.status(500).json({ error: 'Failed to update registration' });
   }
 });
 

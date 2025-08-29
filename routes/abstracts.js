@@ -263,4 +263,154 @@ router.get("/download/:id", async (req, res) => {
   }
 });
 
+// DELETE /api/abstracts/:id - Delete abstract
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First check if abstract exists
+    const [rows] = await pool.query(
+      "SELECT * FROM abstracts WHERE id = ?",
+      [id]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Abstract not found" });
+    }
+    
+    const abstract = rows[0];
+    
+    // Delete the file if it exists
+    if (abstract.file_url && fs.existsSync(abstract.file_url)) {
+      try {
+        fs.unlinkSync(abstract.file_url);
+      } catch (fileError) {
+        console.warn("Could not delete file:", fileError);
+      }
+    }
+    
+    // Delete from database
+    await pool.query("DELETE FROM abstracts WHERE id = ?", [id]);
+    
+    res.json({ 
+      message: "Abstract deleted successfully",
+      deletedId: id 
+    });
+    
+  } catch (error) {
+    console.error("Error deleting abstract:", error);
+    res.status(500).json({ error: "Failed to delete abstract" });
+  }
+});
+
+// PATCH /api/abstracts/:id/status - Update abstract status
+router.patch("/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, reviewComments } = req.body;
+    
+    // Validate status
+    const validStatuses = ['submitted', 'under_review', 'approved', 'rejected', 'pending'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+    
+    // Check if abstract exists
+    const [rows] = await pool.query(
+      "SELECT * FROM abstracts WHERE id = ?",
+      [id]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Abstract not found" });
+    }
+    
+    // Update abstract status
+    await pool.query(
+      "UPDATE abstracts SET status = ?, reviewComments = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      [status, reviewComments || null, id]
+    );
+    
+    // Get updated abstract
+    const [updatedRows] = await pool.query(
+      "SELECT * FROM abstracts WHERE id = ?",
+      [id]
+    );
+    
+    res.json({
+      message: "Abstract status updated successfully",
+      abstract: updatedRows[0]
+    });
+    
+  } catch (error) {
+    console.error("Error updating abstract status:", error);
+    res.status(500).json({ error: "Failed to update abstract status" });
+  }
+});
+
+// PUT /api/abstracts/:id - Update entire abstract
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      title, 
+      abstract: abstractText, 
+      keywords, 
+      authors, 
+      track, 
+      subcategory, 
+      format 
+    } = req.body;
+    
+    // Check if abstract exists
+    const [rows] = await pool.query(
+      "SELECT * FROM abstracts WHERE id = ?",
+      [id]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Abstract not found" });
+    }
+    
+    // Update abstract
+    await pool.query(
+      `UPDATE abstracts SET 
+        title = ?, 
+        abstract = ?, 
+        keywords = ?, 
+        authors = ?, 
+        track = ?, 
+        subcategory = ?, 
+        format = ?, 
+        updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?`,
+      [
+        title,
+        abstractText,
+        JSON.stringify(keywords || []),
+        JSON.stringify(authors),
+        track,
+        subcategory,
+        format,
+        id
+      ]
+    );
+    
+    // Get updated abstract
+    const [updatedRows] = await pool.query(
+      "SELECT * FROM abstracts WHERE id = ?",
+      [id]
+    );
+    
+    res.json({
+      message: "Abstract updated successfully",
+      abstract: updatedRows[0]
+    });
+    
+  } catch (error) {
+    console.error("Error updating abstract:", error);
+    res.status(500).json({ error: "Failed to update abstract" });
+  }
+});
+
 export default router;
