@@ -5,7 +5,7 @@ import mysql from 'mysql2/promise';
 const pool = mysql.createPool({
   host: 'localhost',
   port: 3306,
-  database: 'ntlp_conference',
+  database: 'conf',
   user: 'root',
   password: 'toor',
   waitForConnections: true,
@@ -63,11 +63,11 @@ router.post('/', async (req, res) => {
 
     const insertQuery =
       `INSERT INTO sponsorships (
-        company_name,
-        contact_person,
+        companyName,
+        contactPerson,
         email,
         phone,
-        package_type,
+        packageType,
         status,
         created_at
       ) VALUES (?, ?, ?, ?, ?, 'submitted', CURRENT_TIMESTAMP)`;
@@ -112,3 +112,24 @@ router.post('/', async (req, res) => {
 });
 
 export default router;
+
+// GET /api/sponsorships - Get all sponsorships
+router.get('/', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM sponsorships ORDER BY created_at DESC'
+    );
+    res.json({
+      sponsorships: rows,
+      pagination: {
+        total: rows.length,
+        page: 1,
+        limit: 20,
+        pages: 1
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching sponsorships:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
