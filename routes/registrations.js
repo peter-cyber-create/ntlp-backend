@@ -241,7 +241,8 @@ router.post('/', async (req, res) => {
       district,
       registrationType,
       specialRequirements,
-      dietary_requirements
+      dietary_requirements,
+      paymentProofUrl
     } = req.body;
 
     // Map frontend fields to DB columns
@@ -256,7 +257,8 @@ router.post('/', async (req, res) => {
       session_track: null, // Not provided by frontend
       registration_type: registrationType,
       dietary_requirements: dietary_requirements || null,
-      special_needs: specialRequirements || null
+      special_needs: specialRequirements || null,
+      payment_proof_url: paymentProofUrl || null
     };
 
     // Validate required fields
