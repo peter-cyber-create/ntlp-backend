@@ -3,6 +3,7 @@ import { pool } from "../config/db.js";
 import path from 'path';
 import fs from 'fs';
 import { validateAbstractStatus } from "../middleware/validation.js";
+import multer from 'multer';
 
 const TRACKS = [
   {
@@ -106,8 +107,18 @@ const TRACKS = [
 
 const router = express.Router();
 
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
 
-router.post("/", async (req, res) => {
+const upload = multer({ storage: storage });
+
+router.post("/", upload.single('file'), async (req, res) => {
   try {
     const {
       title,
@@ -119,7 +130,6 @@ router.post("/", async (req, res) => {
       track,
       subcategory,
       cross_cutting_themes = [],
-      file_url,
       submitted_by,
       format
     } = req.body;
@@ -128,6 +138,11 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ 
         error: "Title, abstract, authors, corresponding author email, track, subcategory, and format are required" 
       });
+    }
+
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({ error: "Abstract file is required" });
     }
 
     const trackObj = TRACKS.find(t => t.value === track || t.name === track);
@@ -165,12 +180,15 @@ router.post("/", async (req, res) => {
         subcategory,
         cross_cutting_themes,
         file_url,
+        fileName,
+        filePath,
+        fileSize,
         submitted_by,
         format,
         status,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "submitted", CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "submitted", CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
 
     const [result] = await pool.query(insertQuery, [
       title,
@@ -183,7 +201,10 @@ router.post("/", async (req, res) => {
       track,
       subcategory,
       JSON.stringify(cross_cutting_themes),
-      file_url,
+      req.file.path, // file_url
+      req.file.originalname, // fileName
+      req.file.path, // filePath
+      req.file.size, // fileSize
       submitted_by,
       format,
     ]);
