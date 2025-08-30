@@ -58,7 +58,7 @@ router.post('/login', async (req, res) => {
 // Admin dashboard statistics
 router.get('/dashboard', authenticateAdmin, async (req, res) => {
     try {
-        // Get comprehensive statistics
+        // Get comprehensive statistics from existing tables only
         const statsQueries = await Promise.all([
             // Registration stats
             pool.query(`
@@ -68,7 +68,7 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
                     COUNT(CASE WHEN status = 'submitted' THEN 1 END) as submitted_registrations,
                     COUNT(CASE WHEN status = 'under_review' THEN 1 END) as under_review_registrations,
                     COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_registrations,
-                    COUNT(CASE WHEN created_at >= CURRENT_DATE - INTERVAL 7 DAY THEN 1 END) as new_this_week
+                    COUNT(CASE WHEN createdAt >= CURRENT_DATE - INTERVAL 7 DAY THEN 1 END) as new_this_week
                 FROM registrations
             `),
             
@@ -81,49 +81,20 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
                     COUNT(CASE WHEN status = 'under_review' THEN 1 END) as under_review_abstracts,
                     COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted_abstracts,
                     COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_abstracts,
-                    COUNT(CASE WHEN created_at >= CURRENT_DATE - INTERVAL 7 DAY THEN 1 END) as new_this_week
+                    COUNT(CASE WHEN createdAt >= CURRENT_DATE - INTERVAL 7 DAY THEN 1 END) as new_this_week
                 FROM abstracts
-            `),
-            
-            // Review stats
-            pool.query(`
-                SELECT 
-                    COUNT(*) as total_reviews,
-                    AVG(score) as average_score,
-                    COUNT(CASE WHEN recommendation = 'accept' THEN 1 END) as accept_recommendations,
-                    COUNT(CASE WHEN recommendation = 'reject' THEN 1 END) as reject_recommendations
-                FROM reviews
             `),
             
             // Contact stats
             pool.query(`
                 SELECT 
                     COUNT(*) as total_contacts,
-                    COUNT(CASE WHEN status = 'submitted' THEN 1 END) as submitted_contacts,
-                    COUNT(CASE WHEN status = 'under_review' THEN 1 END) as under_review_contacts,
-                    COUNT(CASE WHEN status = 'responded' THEN 1 END) as responded_contacts,
-                    COUNT(CASE WHEN status = 'requires_followup' THEN 1 END) as requires_followup_contacts,
-                    COUNT(CASE WHEN created_at >= CURRENT_DATE - INTERVAL 7 DAY THEN 1 END) as new_this_week
+                    COUNT(CASE WHEN status = 'new' THEN 1 END) as submitted_contacts,
+                    COUNT(CASE WHEN status = 'pending' THEN 1 END) as under_review_contacts,
+                    COUNT(CASE WHEN status = 'resolved' THEN 1 END) as responded_contacts,
+                    COUNT(CASE WHEN status = 'in-progress' THEN 1 END) as requires_followup_contacts,
+                    COUNT(CASE WHEN createdAt >= CURRENT_DATE - INTERVAL 7 DAY THEN 1 END) as new_this_week
                 FROM contacts
-            `),
-            
-            // Session stats
-            pool.query(`
-                SELECT 
-                    COUNT(*) as total_sessions,
-                    COUNT(CASE WHEN session_type = 'keynote' THEN 1 END) as keynote_sessions,
-                    COUNT(CASE WHEN session_type = 'presentation' THEN 1 END) as presentation_sessions,
-                    COUNT(CASE WHEN status = 'published' THEN 1 END) as published_sessions
-                FROM sessions
-            `),
-            
-            // Speaker stats
-            pool.query(`
-                SELECT 
-                    COUNT(*) as total_speakers,
-                    COUNT(CASE WHEN keynote_speaker = true THEN 1 END) as keynote_speakers,
-                    COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_speakers
-                FROM speakers
             `),
             
             // Sponsorship stats
@@ -138,58 +109,58 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
             `)
         ]);
 
-        const [regStats, absStats, revStats, conStats, sesStats, speStats, sponStats] = statsQueries.map(q => q[0]);
+        const [regStats, absStats, conStats, sponStats] = statsQueries.map(q => q[0][0]);
 
         res.json({
             dashboard: {
                 registrations: {
-                    total: parseInt(regStats.total_registrations),
-                    approved: parseInt(regStats.approved_registrations),
-                    submitted: parseInt(regStats.submitted_registrations),
-                    underReview: parseInt(regStats.under_review_registrations),
-                    rejected: parseInt(regStats.rejected_registrations),
-                    newThisWeek: parseInt(regStats.new_this_week)
+                    total: regStats.total_registrations || 0,
+                    approved: regStats.approved_registrations || 0,
+                    submitted: regStats.submitted_registrations || 0,
+                    underReview: regStats.under_review_registrations || 0,
+                    rejected: regStats.rejected_registrations || 0,
+                    newThisWeek: regStats.new_this_week || 0
                 },
                 abstracts: {
-                    total: parseInt(absStats.total_abstracts),
-                    approved: parseInt(absStats.approved_abstracts),
-                    submitted: parseInt(absStats.submitted_abstracts),
-                    underReview: parseInt(absStats.under_review_abstracts),
-                    accepted: parseInt(absStats.accepted_abstracts),
-                    rejected: parseInt(absStats.rejected_abstracts),
-                    newThisWeek: parseInt(absStats.new_this_week)
+                    total: absStats.total_abstracts || 0,
+                    approved: absStats.approved_abstracts || 0,
+                    submitted: absStats.submitted_abstracts || 0,
+                    underReview: absStats.under_review_abstracts || 0,
+                    accepted: absStats.accepted_abstracts || 0,
+                    rejected: absStats.rejected_abstracts || 0,
+                    newThisWeek: absStats.new_this_week || 0
                 },
                 reviews: {
-                    total: parseInt(revStats.total_reviews),
-                    averageScore: parseFloat(revStats.average_score) || 0,
-                    acceptRecommendations: parseInt(revStats.accept_recommendations),
-                    rejectRecommendations: parseInt(revStats.reject_recommendations)
+                    total: 0,
+                    averageScore: 0,
+                    acceptRecommendations: 0,
+                    rejectRecommendations: 0
                 },
                 contacts: {
-                    total: parseInt(conStats.total_contacts),
-                    submitted: parseInt(conStats.submitted_contacts),
-                    underReview: parseInt(conStats.under_review_contacts),
-                    responded: parseInt(conStats.responded_contacts),
-                    requiresFollowup: parseInt(conStats.requires_followup_contacts),
-                    newThisWeek: parseInt(conStats.new_this_week)
+                    total: conStats.total_contacts || 0,
+                    submitted: conStats.submitted_contacts || 0,
+                    underReview: conStats.under_review_contacts || 0,
+                    responded: conStats.responded_contacts || 0,
+                    requiresFollowup: conStats.requires_followup_contacts || 0,
+                    newThisWeek: conStats.new_this_week || 0
                 },
                 sessions: {
-                    total: parseInt(sesStats.total_sessions),
-                    keynotes: parseInt(sesStats.keynote_sessions),
-                    presentations: parseInt(sesStats.presentation_sessions),
-                    published: parseInt(sesStats.published_sessions)
+                    total: 0,
+                    keynotes: 0,
+                    presentations: 0,
+                    published: 0
                 },
                 speakers: {
-                    total: parseInt(speStats.total_speakers),
-                    keynotes: parseInt(speStats.keynote_speakers),
-                    approved: parseInt(speStats.approved_speakers)
+                    total: 0,
+                    keynotes: 0,
+                    approved: 0
                 },
                 sponsorships: {
-                    total: parseInt(sponStats.total_sponsorships),
-                    submitted: parseInt(sponStats.submitted_sponsorships),
-                    underReview: parseInt(sponStats.under_review_sponsorships),
-                    approved: parseInt(sponStats.approved_sponsorships),
-                    negotiating: parseInt(sponStats.negotiating_sponsorships)
+                    total: sponStats.total_sponsorships || 0,
+                    submitted: sponStats.submitted_sponsorships || 0,
+                    underReview: sponStats.under_review_sponsorships || 0,
+                    approved: sponStats.approved_sponsorships || 0,
+                    negotiating: sponStats.negotiating_sponsorships || 0
                 }
             },
             timestamp: new Date().toISOString()

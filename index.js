@@ -1,7 +1,9 @@
 // backend/index.js
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import morgan from 'morgan';
 import userRoutes from './routes/users.js';
 import activityRoutes from './routes/activities.js';
@@ -17,8 +19,6 @@ import uploadRoutes from './routes/uploads.js';
 import adminRoutes from './routes/admin.js';
 import { rateLimit } from './middleware/auth.js';
 import { verifyEmailConfig } from './middleware/emailService.js';
-
-dotenv.config();
 const app = express();
 
 // Middleware
