@@ -125,18 +125,16 @@ router.post("/", upload.single('file'), async (req, res) => {
       abstract,
       keywords,
       authors,
-      corresponding_author_email,
-      submission_type,
-      track,
-      subcategory,
-      cross_cutting_themes = [],
-      submitted_by,
-      format
+      email,
+      institution,
+      phone,
+      category = 'research'
     } = req.body;
 
-    if (!title || !abstract || !authors || !corresponding_author_email || !track || !subcategory || !format) {
+    // Simplified validation - only require essential fields
+    if (!title || !abstract || !authors || !email) {
       return res.status(400).json({ 
-        error: "Title, abstract, authors, corresponding author email, track, subcategory, and format are required" 
+        error: "Title, abstract, authors, and email are required" 
       });
     }
 
@@ -145,15 +143,7 @@ router.post("/", upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: "Abstract file is required" });
     }
 
-    const trackObj = TRACKS.find(t => t.value === track || t.name === track);
-    if (!trackObj) {
-      return res.status(400).json({ error: "Invalid track" });
-    }
-
-    if (!trackObj.subcategories.includes(subcategory)) {
-      return res.status(400).json({ error: "Invalid subcategory for selected track" });
-    }
-
+    // Validate abstract content (keep the section requirements)
     const requiredSections = ["Background", "Methods", "Findings", "Conclusion"];
     const hasAllSections = requiredSections.every(section => 
       abstract.toLowerCase().includes(section.toLowerCase())
@@ -168,50 +158,43 @@ router.post("/", upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: "Abstract must not exceed 300 words." });
     }
 
+    // Fixed INSERT query to match actual database schema
     const insertQuery = `INSERT INTO abstracts(
         title,
         abstract,
         keywords,
+        category,
         authors,
-        corresponding_author_email,
         email,
-        submission_type,
-        track,
-        subcategory,
-        cross_cutting_themes,
-        file_url,
+        institution,
+        phone,
         fileName,
         filePath,
         fileSize,
-        submitted_by,
-        format,
-        status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "submitted")`;
+        status,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())`;
 
     const [result] = await pool.query(insertQuery, [
       title,
       abstract,
       JSON.stringify(keywords || []),
+      category,
       JSON.stringify(authors),
-      corresponding_author_email,
-      corresponding_author_email,
-      submission_type || "abstract",
-      track,
-      subcategory,
-      JSON.stringify(cross_cutting_themes),
-      req.file.filename, // file_url - just the filename
+      email,
+      institution || null,
+      phone || null,
       req.file.originalname, // fileName
       req.file.path, // filePath
       req.file.size, // fileSize
-      submitted_by,
-      format,
     ]);
 
     const [rows] = await pool.query("SELECT * FROM abstracts WHERE id = ?", [result.insertId]);
     res.status(201).json({
       message: "Abstract submitted successfully and is under review",
       abstract: rows[0],
-      status: "submitted"
+      status: "pending"
     });
 
   } catch (error) {
@@ -329,7 +312,7 @@ router.patch("/:id/status", async (req, res) => {
     const { status, reviewComments } = req.body;
     
     // Validate status
-    const validStatuses = ['submitted', 'under_review', 'approved', 'rejected', 'pending'];
+    const validStatuses = ['pending', 'under_review', 'approved', 'rejected', 'pending'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }

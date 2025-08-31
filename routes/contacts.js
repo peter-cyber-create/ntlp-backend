@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
                 subject,
                 message,
                 status,
-                created_at as submitted_at,
+                created_at as new_at,
                 updated_at as responded_at
             FROM contacts 
             ORDER BY created_at DESC 
@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
         const statsQuery = `
             SELECT 
                 COUNT(*) as total,
-                COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+                COUNT(CASE WHEN status = 'new' THEN 1 END) as pending,
                 COUNT(CASE WHEN status = 'responded' THEN 1 END) as responded,
                 COUNT(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) THEN 1 END) as this_week
             FROM contacts
@@ -83,7 +83,7 @@ router.post('/', validateContact, async (req, res) => {
         const { name, email, subject, message } = req.body;
         const query = `
             INSERT INTO contacts (name, email, subject, message, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 'submitted', NOW(), NOW())
+            VALUES (?, ?, ?, ?, 'new', NOW(), NOW())
         `;
         const values = [name, email, subject, message];
         const [result] = await pool.query(query, values);
@@ -102,7 +102,7 @@ router.post('/', validateContact, async (req, res) => {
         return successResponse(res, {
             contact: newContact,
             info: 'Confirmation email will be sent shortly'
-        }, 'Contact message submitted successfully', 201);
+        }, 'Contact message new successfully', 201);
     } catch (error) {
         console.error('Error creating contact:', error);
         return errorResponse(res, 'Failed to submit contact message', 500);
@@ -122,7 +122,7 @@ router.get('/:id', async (req, res) => {
                 subject,
                 message,
                 status,
-                created_at as submitted_at,
+                created_at as new_at,
                 updated_at as responded_at
             FROM contacts 
             WHERE id = ?
@@ -244,7 +244,7 @@ router.patch('/bulk/status', async (req, res) => {
             });
         }
 
-        if (!['pending', 'responded', 'closed'].includes(status)) {
+        if (!['new', 'responded', 'closed'].includes(status)) {
             return res.status(400).json({ 
                 error: 'Invalid status. Must be pending, responded, or closed',
                 timestamp: new Date().toISOString()
@@ -312,10 +312,10 @@ router.patch('/:id/status', async (req, res) => {
         const { status } = req.body;
         
         // Validate status
-        const validStatuses = ['submitted', 'under_review', 'responded', 'requires_followup'];
+        const validStatuses = ['new', 'under_review', 'responded', 'requires_followup'];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({
-                error: 'Invalid status. Must be one of: submitted, under_review, responded, requires_followup',
+                error: 'Invalid status. Must be one of: new, under_review, responded, requires_followup',
                 timestamp: new Date().toISOString()
             });
         }

@@ -269,12 +269,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Insert registration into DB with 'submitted' status
+    // Insert registration into DB with 'pending' status
     const insertQuery = `
       INSERT INTO registrations (
-        first_name, last_name, email, institution, phone, position, country, 
-        registration_type, dietary_requirements, special_needs, payment_proof_url, payment_status, status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', NOW(), NOW())
+        first_name, last_name, email, organization, phone, position, country, 
+        registrationType, dietary_requirements, special_needs, payment_reference, payment_status, status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())
     `;
     
     const [result] = await pool.query(insertQuery, [
@@ -296,7 +296,7 @@ router.post('/', async (req, res) => {
     await pool.query(`
       INSERT INTO form_submissions (
         form_type, entity_id, submitted_by, submission_data, status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, 'submitted', NOW(), NOW())
+      ) VALUES (?, ?, ?, ?, 'pending', NOW(), NOW())
     `, [
       'registration',
       result.insertId,
@@ -312,7 +312,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       message: 'Registration submitted successfully and is under review',
       registration: newRegistration,
-      status: 'submitted'
+      status: 'pending'
     });
   } catch (error) {
     console.error('Error submitting registration:', error);
@@ -374,7 +374,7 @@ router.patch('/:id/status', async (req, res) => {
     const { id } = req.params;
     const { status, admin_notes, review_comments } = req.body;
     
-    if (!['submitted', 'under_review', 'approved', 'rejected', 'waitlist', 'cancelled'].includes(status)) {
+    if (!['pending', 'under_review', 'approved', 'rejected', 'waitlist', 'cancelled'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
     
@@ -427,7 +427,7 @@ router.patch('/bulk/status', async (req, res) => {
       return res.status(400).json({ error: 'IDs array is required' });
     }
     
-    if (!['submitted', 'under_review', 'approved', 'rejected', 'waitlist', 'cancelled'].includes(status)) {
+    if (!['pending', 'under_review', 'approved', 'rejected', 'waitlist', 'cancelled'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
     
@@ -474,7 +474,7 @@ router.get('/stats/overview', async (req, res) => {
     const [stats] = await pool.query(`
       SELECT 
         COUNT(*) as total_registrations,
-        COUNT(CASE WHEN status = 'submitted' THEN 1 END) as submitted,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as submitted,
         COUNT(CASE WHEN status = 'under_review' THEN 1 END) as under_review,
         COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
         COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected,
@@ -546,7 +546,7 @@ router.patch('/:id/status', async (req, res) => {
     const { status } = req.body;
     
     // Validate status
-    const validStatuses = ['submitted', 'under_review', 'approved', 'rejected', 'waitlist', 'cancelled'];
+    const validStatuses = ['pending', 'under_review', 'approved', 'rejected', 'waitlist', 'cancelled'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }

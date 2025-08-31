@@ -79,7 +79,7 @@ router.post('/', async (req, res) => {
     await pool.query(`
       INSERT INTO form_submissions (
         form_type, entity_id, submitted_by, submission_data, status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, 'submitted', NOW(), NOW())
+      ) VALUES (?, ?, ?, ?, 'pending', NOW(), NOW())
     `, [
       'sponsorship',
       result.insertId,
