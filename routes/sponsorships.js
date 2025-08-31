@@ -1,17 +1,6 @@
 
 import express from 'express';
-import mysql from 'mysql2/promise';
-
-const pool = mysql.createPool({
-  host: 'localhost',
-  port: 3306,
-  database: 'conf',
-  user: 'root',
-  password: 'toor',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+import { pool } from '../config/db.js';
 
 const router = express.Router();
 
@@ -63,20 +52,26 @@ router.post('/', async (req, res) => {
 
     const insertQuery =
       `INSERT INTO sponsorships (
-        companyName,
-        contactPerson,
+        company_name,
+        contact_person,
         email,
         phone,
-        packageType,
+        website,
+        industry,
+        special_requirements,
+        package_type,
         status,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, 'submitted', CURRENT_TIMESTAMP)`;
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', NOW())`;
 
     const [result] = await pool.query(insertQuery, [
       companyName,
       contactPerson,
       email,
-      phone,
+      phone || null,
+      website || null,
+      industry || null,
+      specialRequirements || null,
       dbPackageType
     ]);
 
@@ -94,6 +89,9 @@ router.post('/', async (req, res) => {
         contactPerson,
         email,
         phone,
+        website,
+        industry,
+        specialRequirements,
         selectedPackage
       })
     ]);

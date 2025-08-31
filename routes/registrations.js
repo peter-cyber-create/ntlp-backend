@@ -223,19 +223,18 @@ router.get('/user/:registrationId', async (req, res) => {
 // Register for the conference (main registration form)
 router.post('/', async (req, res) => {
   try {
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      organization,
-      position,
-      district,
-      registrationType,
-      specialRequirements,
-      dietary_requirements,
-      paymentProofUrl
-    } = req.body;
+    // Extract fields from request body
+    const firstName = req.body.firstName;
+    const lastName = req.body.lastName;
+    const email = req.body.email;
+    const phone = req.body.phone;
+    const organization = req.body.organization;
+    const position = req.body.position;
+    const country = req.body.country;
+    const registrationType = req.body.registrationType;
+    const specialRequirements = req.body.specialRequirements;
+    const dietary_requirements = req.body.dietary_requirements;
+    const paymentProofUrl = req.body.paymentProofUrl;
 
     // Map frontend fields to DB columns
     const dbData = {
@@ -245,11 +244,10 @@ router.post('/', async (req, res) => {
       organization: organization || null,
       phone: phone || null,
       position: position || null,
-      district: district || null,
+      country: country || null,
       registrationType: registrationType,
       dietary_requirements: dietary_requirements || null,
-      specialRequirements: specialRequirements || null,
-      payment_proof_url: paymentProofUrl || null
+      special_needs: specialRequirements || null
     };
 
     // Validate required fields
@@ -274,10 +272,11 @@ router.post('/', async (req, res) => {
     // Insert registration into DB with 'submitted' status
     const insertQuery = `
       INSERT INTO registrations (
-        firstName, lastName, email, organization, phone, position, district, 
-        registrationType, payment_proof_url, payment_status, dietary_requirements, specialRequirements, status, created_at, updated_at
+        first_name, last_name, email, institution, phone, position, country, 
+        registration_type, dietary_requirements, special_needs, payment_proof_url, payment_status, status, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', NOW(), NOW())
     `;
+    
     const [result] = await pool.query(insertQuery, [
       dbData.firstName,
       dbData.lastName,
@@ -285,12 +284,12 @@ router.post('/', async (req, res) => {
       dbData.organization,
       dbData.phone,
       dbData.position,
-      dbData.district,
+      dbData.country,
       dbData.registrationType,
-      dbData.payment_proof_url || null,
-      'pending',
       dbData.dietary_requirements,
-      dbData.specialRequirements
+      dbData.special_needs,
+      paymentProofUrl || null,
+      'pending'
     ]);
 
     // Create form submission record
@@ -540,11 +539,11 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// PATCH /api/register/:id/status - Update registration status
+// PATCH /api/registrations/:id/status - Update registration status (for admin interface)
 router.patch('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, adminNotes, reviewedBy } = req.body;
+    const { status } = req.body;
     
     // Validate status
     const validStatuses = ['submitted', 'under_review', 'approved', 'rejected', 'waitlist', 'cancelled'];
@@ -561,8 +560,8 @@ router.patch('/:id/status', async (req, res) => {
     
     // Update registration status
     await pool.query(
-      'UPDATE registrations SET status = ?, admin_notes = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [status, adminNotes || null, reviewedBy || null, id]
+      'UPDATE registrations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [status, id]
     );
     
     // Get updated registration

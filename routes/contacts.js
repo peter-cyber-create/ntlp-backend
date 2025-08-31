@@ -26,8 +26,6 @@ router.get('/', async (req, res) => {
                 id,
                 name,
                 email,
-                phone,
-                organization,
                 subject,
                 message,
                 status,
@@ -35,7 +33,7 @@ router.get('/', async (req, res) => {
                 updated_at as responded_at
             FROM contacts 
             ORDER BY created_at DESC 
-            LIMIT $1 OFFSET $2
+            LIMIT ? OFFSET ?
         `;
         
         const [contactsRows] = await pool.query(contactsQuery, [limit, offset]);
@@ -82,12 +80,12 @@ router.get('/', async (req, res) => {
 router.post('/', validateContact, async (req, res) => {
     try {
         console.log('Creating new contact:', req.body);
-        const { name, email, phone, organization, subject, message } = req.body;
+        const { name, email, subject, message } = req.body;
         const query = `
-            INSERT INTO contacts (name, email, phone, organization, subject, message, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())
+            INSERT INTO contacts (name, email, subject, message, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'submitted', NOW(), NOW())
         `;
-        const values = [name, email, phone || null, organization || null, subject, message];
+        const values = [name, email, subject, message];
         const [result] = await pool.query(query, values);
         // Fetch the inserted row
         const [rows] = await pool.query('SELECT * FROM contacts WHERE id = ?', [result.insertId]);
@@ -121,15 +119,13 @@ router.get('/:id', async (req, res) => {
                 id,
                 name,
                 email,
-                phone,
-                organization,
                 subject,
                 message,
                 status,
                 created_at as submitted_at,
                 updated_at as responded_at
             FROM contacts 
-            WHERE id = $1
+            WHERE id = ?
         `;
         
         const result = await pool.query(query, [id]);
@@ -157,7 +153,7 @@ router.put('/:id', async (req, res) => {
         
         // First get the current contact data
         const currentContactQuery = `
-            SELECT * FROM contacts WHERE id = $1
+            SELECT * FROM contacts WHERE id = ?
         `;
         const currentResult = await pool.query(currentContactQuery, [id]);
         
@@ -173,8 +169,8 @@ router.put('/:id', async (req, res) => {
         // Update the contact
         const query = `
             UPDATE contacts 
-            SET status = $1, response_message = $2, updated_at = NOW()
-            WHERE id = $3
+            SET status = ?, response_message = ?, updated_at = NOW()
+            WHERE id = ?
             RETURNING *
         `;
         
@@ -213,7 +209,7 @@ router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         
-        const result = await pool.query('DELETE FROM contacts WHERE id = $1 RETURNING *', [id]);
+        const result = await pool.query('DELETE FROM contacts WHERE id = ?', [id]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -302,6 +298,56 @@ router.delete('/bulk', async (req, res) => {
 
     } catch (error) {
         console.error('Error bulk deleting contacts:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// PATCH /api/contacts/:id/status - Update contact status (for admin interface)
+router.patch('/:id/status', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        
+        // Validate status
+        const validStatuses = ['submitted', 'under_review', 'responded', 'requires_followup'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                error: 'Invalid status. Must be one of: submitted, under_review, responded, requires_followup',
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        // Update the contact status
+        const query = `
+            UPDATE contacts 
+            SET status = ?, updated_at = NOW()
+            WHERE id = ?
+        `;
+        
+        const [result] = await pool.query(query, [status, id]);
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                error: 'Contact not found',
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        // Get the updated contact
+        const [updatedRows] = await pool.query('SELECT * FROM contacts WHERE id = ?', [id]);
+        const updatedContact = updatedRows[0];
+        
+        res.json({
+            message: 'Contact status updated successfully',
+            contact: updatedContact,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('Error updating contact status:', error);
         res.status(500).json({
             error: 'Internal server error',
             timestamp: new Date().toISOString()

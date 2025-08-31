@@ -5,6 +5,10 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import compression from 'compression';
+import path from 'path';
+
+// Import routes
 import userRoutes from './routes/users.js';
 import activityRoutes from './routes/activities.js';
 import speakerRoutes from './routes/speakers.js';
@@ -17,41 +21,142 @@ import contactRoutes from './routes/contacts.js';
 import sponsorshipRoutes from './routes/sponsorships.js';
 import uploadRoutes from './routes/uploads.js';
 import adminRoutes from './routes/admin.js';
-import { rateLimit } from './middleware/auth.js';
+
+// Import middleware
+import { 
+  securityMiddleware, 
+  productionRateLimit, 
+  sanitizeInput,
+  requestLogger 
+} from './middleware/auth.js';
 import { verifyEmailConfig } from './middleware/emailService.js';
+
+// Import logger
+import logger, { stream } from './config/logger.js';
+
+// Import database utilities
+import { testConnection, healthCheck } from './config/db.js';
+
 const app = express();
 
-// Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+// Security middleware (must be first)
+app.use(securityMiddleware);
+
+// Trust proxy for proper IP detection behind load balancers
+app.set('trust proxy', 1);
+
+// CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = process.env.ALLOWED_ORIGINS 
+      ? process.env.ALLOWED_ORIGINS.split(',') 
+      : [process.env.FRONTEND_URL || 'http://localhost:3000'];
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      logger.warn(`CORS blocked request from: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-CSRF-Token'],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Count']
+};
+
+app.use(cors(corsOptions));
+
+// Body parsing middleware with security limits
+app.use(express.json({ 
+  limit: process.env.MAX_FILE_SIZE || '10mb',
+  verify: (req, res, buf) => {
+    try {
+      JSON.parse(buf);
+    } catch (e) {
+      throw new Error('Invalid JSON');
+    }
+  }
+}));
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: process.env.MAX_FILE_SIZE || '10mb' 
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-app.use(morgan('combined'));
+// Compression middleware
+app.use(compression());
 
-// Rate limiting
-app.use(rateLimit(1000, 15 * 60 * 1000)); // 1000 requests per 15 minutes
+// Request logging with Winston
+app.use(morgan('combined', { stream }));
+
+// Custom request logging
+app.use(requestLogger);
+
+// Input sanitization
+app.use(sanitizeInput);
+
+// Production rate limiting
+app.use(productionRateLimit);
 
 // Initialize email service
 verifyEmailConfig();
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    service: 'NTLP Backend API',
-    version: '1.0.0'
-  });
+app.get('/health', async (req, res) => {
+  try {
+    const dbHealth = await healthCheck();
+    const uptime = process.uptime();
+    const memoryUsage = process.memoryUsage();
+    
+    res.status(200).json({ 
+      status: 'OK', 
+      timestamp: new Date().toISOString(),
+      service: 'NTLP Backend API',
+      version: '1.0.0',
+      uptime: `${Math.floor(uptime / 60)} minutes`,
+      memory: {
+        rss: `${Math.round(memoryUsage.rss / 1024 / 1024)} MB`,
+        heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)} MB`,
+        heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)} MB`
+      },
+      database: dbHealth,
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    logger.error('Health check failed', error);
+    res.status(503).json({ 
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      error: 'Service unavailable'
+    });
+  }
 });
+
+// Metrics endpoint (if enabled)
+if (process.env.METRICS_ENABLED === 'true') {
+  app.get('/metrics', (req, res) => {
+    const metrics = {
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      nodeVersion: process.version,
+      platform: process.platform,
+      arch: process.arch
+    };
+    
+    res.json(metrics);
+  });
+}
 
 // API Documentation endpoint
 app.get('/api', (req, res) => {
   res.json({
     message: 'NTLP Conference Management API',
     version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
     endpoints: {
       registrations: '/api/registrations',
       activities: '/api/activities',
@@ -68,63 +173,51 @@ app.get('/api', (req, res) => {
       'activity-registrations': '/api/register/activities'
     },
     health: '/health',
+    metrics: process.env.METRICS_ENABLED === 'true' ? '/metrics' : 'disabled',
     features: [
       'Conference registration management',
       'Abstract submission and review system', 
       'Speaker and session management',
       'Activity and event coordination',
       'Announcement system',
-      'Full peer review workflow'
+      'Full peer review workflow',
+      'Production-ready security',
+      'Comprehensive logging',
+      'Rate limiting and monitoring'
     ]
   });
 });
 
 // API Routes
-// Payment routes are disabled. Manual payment instructions are provided instead.
-// import paymentsRoutes from './routes/payments.js';
-// ...existing code...
-// Removed invalid import of './app/api/registrations.js' (non-JS content)
-app.use('/api/users', userRoutes);          // Alternative alias for backward compatibility
+app.use('/api/users', userRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/speakers', speakerRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/announcements', announcementRoutes);
-app.use('/api/register', registrationRoutes);  // Session/activity registrations
+app.use('/api/register', registrationRoutes);
+app.use('/api/registrations', registrationRoutes);
 app.use('/api/abstracts', abstractRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/sponsorships', sponsorshipRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/admin', adminRoutes);
-// app.use('/api/payments', paymentsRoutes);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
-  res.status(500).json({ 
-    success: false,
-    error: 'Something went wrong!',
-    timestamp: new Date().toISOString(),
-    notification: {
-      type: 'error',
-      title: 'Server Error',
-      message: 'An unexpected error occurred. Please try again.',
-      duration: 5000,
-      icon: '❌',
-      actions: [
-        { label: 'Refresh Page', action: 'reload' },
-        { label: 'Contact Support', action: 'contact_support' }
-      ]
-    }
-  });
-});
+// Serve static files (uploads)
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // 404 handler
 app.use('*', (req, res) => {
+  logger.warn(`Route not found: ${req.method} ${req.originalUrl}`, {
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+  
   res.status(404).json({ 
     error: 'Route not found',
     path: req.originalUrl,
     method: req.method,
+    timestamp: new Date().toISOString(),
     available_endpoints: [
       '/health',
       '/api',
@@ -144,11 +237,96 @@ app.use('*', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 NTLP Backend API running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`📚 API docs: http://localhost:${PORT}/api`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📝 Features: Registration, Abstracts, Reviews, Sessions, Activities`);
+// Global error handling middleware
+app.use((err, req, res, next) => {
+  // Log the error
+  logger.error('Unhandled error', err, req);
+  
+  // Don't expose internal errors in production
+  const isProduction = process.env.NODE_ENV === 'production';
+  const errorMessage = isProduction ? 'Internal server error' : err.message;
+  const errorStack = isProduction ? undefined : err.stack;
+  
+  res.status(err.status || 500).json({ 
+    success: false,
+    error: errorMessage,
+    timestamp: new Date().toISOString(),
+    ...(errorStack && { stack: errorStack }),
+    notification: {
+      type: 'error',
+      title: 'Server Error',
+      message: 'An unexpected error occurred. Please try again.',
+      duration: 5000,
+      icon: '❌',
+      actions: [
+        { label: 'Refresh Page', action: 'reload' },
+        { label: 'Contact Support', action: 'contact_support' }
+      ]
+    }
+  });
 });
+
+// Graceful shutdown handling
+const gracefulShutdown = async (signal) => {
+  logger.info(`Received ${signal}. Starting graceful shutdown...`);
+  
+  try {
+    // Close database connections
+    const { closePool } = await import('./config/db.js');
+    await closePool();
+    
+    // Close server
+    server.close(() => {
+      logger.info('HTTP server closed');
+      process.exit(0);
+    });
+    
+    // Force exit after 10 seconds
+    setTimeout(() => {
+      logger.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+    
+  } catch (error) {
+    logger.error('Error during graceful shutdown:', error);
+    process.exit(1);
+  }
+};
+
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+// Start server
+const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
+
+const server = app.listen(PORT, HOST, async () => {
+  logger.info(`🚀 NTLP Backend API running on ${HOST}:${PORT}`);
+  logger.info(`📊 Health check: http://${HOST}:${PORT}/health`);
+  logger.info(`📚 API docs: http://${HOST}:${PORT}/api`);
+  logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Test database connection
+  try {
+    await testConnection();
+    logger.info('✅ Database connection established');
+  } catch (error) {
+    logger.error('❌ Database connection failed:', error.message);
+    process.exit(1);
+  }
+});
+
+export default app;

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS registrations (
     position VARCHAR(100),
     country VARCHAR(100),
     session_track VARCHAR(100),
-    registration_type VARCHAR(50) CHECK (registration_type IN ('undergrad', 'grad', 'local', 'intl', 'online')),
+    registration_type VARCHAR(50) CHECK (registration_type IN ('undergrad', 'grad', 'local', 'intl', 'online', 'delegate')),
     dietary_requirements TEXT,
     special_needs TEXT,
     status VARCHAR(20) DEFAULT 'submitted' CHECK (status IN ('submitted', 'under_review', 'approved', 'rejected', 'waitlist', 'cancelled')),

@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS registrations (
     reviewed_by INTEGER,
     reviewed_at TIMESTAMP,
     review_comments TEXT,
+    payment_proof_url VARCHAR(500),
+    payment_status VARCHAR(20) DEFAULT 'pending' CHECK (payment_status IN ('pending', 'verified', 'rejected')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -109,10 +109,10 @@ const router = express.Router();
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/');
+    cb(null, 'uploads/abstracts/');
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
+    cb(null, 'abstract_' + Date.now() + '_' + file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'));
   }
 });
 
@@ -185,10 +185,8 @@ router.post("/", upload.single('file'), async (req, res) => {
         fileSize,
         submitted_by,
         format,
-        status,
-        created_at,
-        updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "submitted", CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
+        status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "submitted")`;
 
     const [result] = await pool.query(insertQuery, [
       title,
@@ -201,7 +199,7 @@ router.post("/", upload.single('file'), async (req, res) => {
       track,
       subcategory,
       JSON.stringify(cross_cutting_themes),
-      req.file.path, // file_url
+      req.file.filename, // file_url - just the filename
       req.file.originalname, // fileName
       req.file.path, // filePath
       req.file.size, // fileSize
