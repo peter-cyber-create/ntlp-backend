@@ -257,7 +257,7 @@ export const validateReview = [
 // Abstract status update validation
 export const validateAbstractStatus = [
   body('status')
-    .isIn(['submitted', 'under_review', 'accepted', 'rejected', 'revision_required'])
+    .isIn(['submitted', 'under-review', 'accepted', 'rejected', 'pending'])
     .withMessage('Invalid status'),
   body('reviewer_comments')
     .optional()

@@ -128,20 +128,20 @@ router.post("/", upload.single('file'), async (req, res) => {
       email,
       institution,
       phone,
-      category = 'research'
+      track = 'research'
     } = req.body;
 
     // Simplified validation - only require essential fields
-    if (!title || !abstract || !authors || !email) {
-      return res.status(400).json({ 
-        error: "Title, abstract, authors, and email are required" 
-      });
-    }
+    // if (!title || !abstract || !authors || !email) {
+    //   return res.status(400).json({ 
+    //     error: "Title, abstract, authors, and email are required" 
+    //   });
+    // }
 
     // Check if file was uploaded
-    if (!req.file) {
-      return res.status(400).json({ error: "Abstract file is required" });
-    }
+    // if (!req.file) {
+    //   return res.status(400).json({ error: "Abstract file is required" });
+    // }
 
     // Validate abstract content (keep the section requirements)
     const requiredSections = ["Background", "Methods", "Findings", "Conclusion"];
@@ -149,23 +149,23 @@ router.post("/", upload.single('file'), async (req, res) => {
       abstract.toLowerCase().includes(section.toLowerCase())
     );
 
-    if (!hasAllSections) {
-      return res.status(400).json({ error: "Abstract must include Background, Methods, Findings, and Conclusion sections." });
-    }
+    // if (!hasAllSections) {
+    //   return res.status(400).json({ error: "Abstract must include Background, Methods, Findings, and Conclusion sections." });
+    // }
 
-    const wordCount = abstract.trim().split(/\s+/).length;
-    if (wordCount > 300) {
-      return res.status(400).json({ error: "Abstract must not exceed 300 words." });
-    }
+    // const wordCount = abstract.trim().split(/\s+/).length;
+    // if (wordCount > 300) {
+    //   return res.status(400).json({ error: "Abstract must not exceed 300 words." });
+    // }
 
     // Fixed INSERT query to match actual database schema
     const insertQuery = `INSERT INTO abstracts(
         title,
         abstract,
         keywords,
-        category,
+        track,
         authors,
-        email,
+        corresponding_author_email,
         institution,
         phone,
         fileName,
@@ -174,13 +174,13 @@ router.post("/", upload.single('file'), async (req, res) => {
         status,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())`;
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', NOW(), NOW())`;
 
     const [result] = await pool.query(insertQuery, [
       title,
       abstract,
       JSON.stringify(keywords || []),
-      category,
+      track,
       JSON.stringify(authors),
       email,
       institution || null,
@@ -194,7 +194,7 @@ router.post("/", upload.single('file'), async (req, res) => {
     res.status(201).json({
       message: "Abstract submitted successfully and is under review",
       abstract: rows[0],
-      status: "pending"
+      status: "submitted"
     });
 
   } catch (error) {
@@ -239,11 +239,18 @@ router.get("/download/:id", async (req, res) => {
     
     const abstract = rows[0];
     
-    if (!abstract.file_url) {
+    console.log('Abstract data:', {
+      id: abstract.id,
+      title: abstract.title,
+      filePath: abstract.filePath,
+      fileName: abstract.fileName
+    });
+    
+    if (!abstract.filePath) {
       return res.status(404).json({ error: "No file attached to this abstract" });
     }
     
-    const filePath = path.resolve(abstract.file_url);
+    const filePath = path.resolve(abstract.filePath);
     
     // Check if file exists
     if (!fs.existsSync(filePath)) {
@@ -306,16 +313,11 @@ router.delete("/:id", async (req, res) => {
 });
 
 // PATCH /api/abstracts/:id/status - Update abstract status
-router.patch("/:id/status", async (req, res) => {
+router.patch("/:id/status", validateAbstractStatus, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, reviewComments } = req.body;
     
-    // Validate status
-    const validStatuses = ['pending', 'under_review', 'approved', 'rejected', 'pending'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: "Invalid status" });
-    }
     
     // Check if abstract exists
     const [rows] = await pool.query(

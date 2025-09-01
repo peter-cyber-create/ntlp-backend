@@ -1,28 +1,94 @@
-cursor.AppImage: ignoring input
-[dotenv@17.2.1] injecting env (9) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+cursor: ignoring input
+[dotenv@17.2.1] injecting env (10) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+Ignoring invalid configuration option passed to Connection: acquireTimeout. This is currently a warning, but in future versions of MySQL2, an error will be thrown if you pass an invalid configuration option to a Connection
+Ignoring invalid configuration option passed to Connection: timeout. This is currently a warning, but in future versions of MySQL2, an error will be thrown if you pass an invalid configuration option to a Connection
+Ignoring invalid configuration option passed to Connection: reconnect. This is currently a warning, but in future versions of MySQL2, an error will be thrown if you pass an invalid configuration option to a Connection
+Ignoring invalid configuration option passed to Connection: collation. This is currently a warning, but in future versions of MySQL2, an error will be thrown if you pass an invalid configuration option to a Connection
+[dotenv@17.2.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
 [dotenv@17.2.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
-[dotenv@17.2.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
-node:events:502
-      throw er; // Unhandled 'error' event
-      ^
-
-Error: listen EADDRINUSE: address already in use :::5000
-    at Server.setupListenHandle [as _listen2] (node:net:1902:16)
-    at listenInCluster (node:net:1959:12)
-    at Server.listen (node:net:2061:7)
-    at Function.listen (/home/peter/Desktop/dev/ntlp/ntlp-backend/node_modules/express/lib/application.js:635:24)
-    at file:///home/peter/Desktop/dev/ntlp/ntlp-backend/index.js:148:5
-    at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
-    at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
-    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
-Emitted 'error' event on Server instance at:
-    at emitErrorNT (node:net:1938:8)
-    at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
-  code: 'EADDRINUSE',
-  errno: -98,
-  syscall: 'listen',
-  address: '::',
-  port: 5000
+[32minfo[39m: 🚀 NTLP Backend API running on 0.0.0.0:5000 {"timestamp":"2025-09-01 11:07:52:752"}
+[32minfo[39m: 📊 Health check: http://0.0.0.0:5000/health {"timestamp":"2025-09-01 11:07:52:752"}
+[32minfo[39m: 📚 API docs: http://0.0.0.0:5000/api {"timestamp":"2025-09-01 11:07:52:752"}
+[32minfo[39m: 🌍 Environment: development {"timestamp":"2025-09-01 11:07:52:752"}
+✅ Database connection successful
+[32minfo[39m: ✅ Database connection established {"timestamp":"2025-09-01 11:07:52:752"}
+⚠️ Email service not configured: Missing credentials for "PLAIN"
+Form submissions table update skipped: Data truncated for column 'status' at row 15
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:08:02 +0000] "PATCH /api/registrations/19/status HTTP/1.1" 200 719 "-" "curl/8.14.1" {"timestamp":"2025-09-01 11:08:02:82"}
+Request: {"method":"PATCH","url":"/19/status","status":200,"duration":"45ms","ip":"127.0.0.1","userAgent":"curl/8.14.1","timestamp":"2025-09-01T08:08:02.195Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:08:11 +0000] "GET /api/registrations HTTP/1.1" 200 10055 "-" "curl/8.14.1" {"timestamp":"2025-09-01 11:08:11:811"}
+Request: {"method":"GET","url":"/","status":200,"duration":"12ms","ip":"127.0.0.1","userAgent":"curl/8.14.1","timestamp":"2025-09-01T08:08:11.921Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:08:19 +0000] "GET /api/uploads/file/uploads/payment-proofs/payment-proof-1756708323805-590283592.pdf HTTP/1.1" 200 94055 "-" "curl/8.14.1" {"timestamp":"2025-09-01 11:08:19:819"}
+Request: {"method":"GET","url":"/file/uploads/payment-proofs/payment-proof-1756708323805-590283592.pdf","status":200,"duration":"11ms","ip":"127.0.0.1","userAgent":"curl/8.14.1","timestamp":"2025-09-01T08:08:19.142Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:08:25 +0000] "DELETE /api/registrations/1 HTTP/1.1" 200 63 "-" "curl/8.14.1" {"timestamp":"2025-09-01 11:08:25:825"}
+Request: {"method":"DELETE","url":"/1","status":200,"duration":"10ms","ip":"127.0.0.1","userAgent":"curl/8.14.1","timestamp":"2025-09-01T08:08:25.370Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:10:20 +0000] "GET /api/registrations HTTP/1.1" 200 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:10:20:1020"}
+Request: {"method":"GET","url":"/","status":200,"duration":"13ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:10:20.269Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:10:20 +0000] "GET /api/registrations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:10:20:1020"}
+Request: {"method":"GET","url":"/","status":304,"duration":"6ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:10:20.276Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:10:20 +0000] "GET /api/abstracts HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:10:20:1020"}
+Request: {"method":"GET","url":"/","status":304,"duration":"23ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:10:20.283Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:10:20 +0000] "GET /api/abstracts HTTP/1.1" 200 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:10:20:1020"}
+Request: {"method":"GET","url":"/","status":200,"duration":"4ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:10:20.289Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:10:23 +0000] "GET /api/abstracts HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:10:23:1023"}
+Request: {"method":"GET","url":"/","status":304,"duration":"5ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:10:23.267Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:10:23 +0000] "GET /api/abstracts HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:10:23:1023"}
+Request: {"method":"GET","url":"/","status":304,"duration":"3ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:10:23.273Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:10:26 +0000] "GET /api/registrations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:10:26:1026"}
+Request: {"method":"GET","url":"/","status":304,"duration":"4ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:10:26.589Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:10:26 +0000] "GET /api/registrations HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:10:26:1026"}
+Request: {"method":"GET","url":"/","status":304,"duration":"3ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:10:26.594Z"}
+Form submissions table update skipped: Data truncated for column 'status' at row 11
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:10:30 +0000] "PATCH /api/registrations/16/status HTTP/1.1" 200 597 "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:10:30:1030"}
+Request: {"method":"PATCH","url":"/16/status","status":200,"duration":"13ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:10:30.171Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:10:34 +0000] "PATCH /api/registrations/17/status HTTP/1.1" 200 592 "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:10:34:1034"}
+Request: {"method":"PATCH","url":"/17/status","status":200,"duration":"11ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:10:34.386Z"}
+Fetching contacts...
+Fetching contacts...
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:11:44 +0000] "GET /api/contacts HTTP/1.1" 200 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:11:44:1144"}
+Request: {"method":"GET","url":"/","status":200,"duration":"12ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:11:44.732Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:11:44 +0000] "GET /api/contacts HTTP/1.1" 200 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:11:44:1144"}
+Request: {"method":"GET","url":"/","status":200,"duration":"13ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:11:44.735Z"}
+Error updating contact status: Error: Data truncated for column 'status' at row 1
+    at PromisePool.query (/home/peter/Desktop/dev/ntlp/ntlp-backend/node_modules/mysql2/lib/promise/pool.js:36:22)
+    at file:///home/peter/Desktop/dev/ntlp/ntlp-backend/routes/contacts.js:330:37
+    at Layer.handle [as handle_request] (/home/peter/Desktop/dev/ntlp/ntlp-backend/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/peter/Desktop/dev/ntlp/ntlp-backend/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/peter/Desktop/dev/ntlp/ntlp-backend/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/peter/Desktop/dev/ntlp/ntlp-backend/node_modules/express/lib/router/layer.js:95:5)
+    at /home/peter/Desktop/dev/ntlp/ntlp-backend/node_modules/express/lib/router/index.js:284:15
+    at param (/home/peter/Desktop/dev/ntlp/ntlp-backend/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/peter/Desktop/dev/ntlp/ntlp-backend/node_modules/express/lib/router/index.js:376:14)
+    at Function.process_params (/home/peter/Desktop/dev/ntlp/ntlp-backend/node_modules/express/lib/router/index.js:421:3) {
+  code: 'WARN_DATA_TRUNCATED',
+  errno: 1265,
+  sql: '\n' +
+    '            UPDATE contacts \n' +
+    "            SET status = 'under_review', updated_at = NOW()\n" +
+    "            WHERE id = '7'\n" +
+    '        ',
+  sqlState: '01000',
+  sqlMessage: "Data truncated for column 'status' at row 1"
 }
-
-Node.js v20.19.2
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:11:51 +0000] "PATCH /api/contacts/7/status HTTP/1.1" 500 72 "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:11:51:1151"}
+Request: {"method":"PATCH","url":"/7/status","status":500,"duration":"17ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:11:51.687Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:11:56 +0000] "GET /api/sponsorships HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:11:56:1156"}
+Request: {"method":"GET","url":"/","status":304,"duration":"3ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:11:56.434Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:11:56 +0000] "GET /api/sponsorships HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:11:56:1156"}
+Request: {"method":"GET","url":"/","status":304,"duration":"4ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:11:56.439Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:12:03 +0000] "GET /api/abstracts HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:12:03:123"}
+Request: {"method":"GET","url":"/","status":304,"duration":"2ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:12:03.267Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:12:03 +0000] "GET /api/abstracts HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:12:03:123"}
+Request: {"method":"GET","url":"/","status":304,"duration":"3ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:12:03.272Z"}
+Abstract data: {
+  id: 10,
+  title: 'FRANK',
+  filePath: 'uploads/abstracts/abstract_1756708724732_FACE_PRESENTATION.pdf',
+  fileName: 'FACE PRESENTATION.pdf'
+}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:12:12 +0000] "GET /api/abstracts/download/10 HTTP/1.1" 200 - "http://localhost:3000/" "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0" {"timestamp":"2025-09-01 11:12:12:1212"}
+Request: {"method":"GET","url":"/download/10","status":200,"duration":"11ms","ip":"127.0.0.1","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0","timestamp":"2025-09-01T08:12:12.702Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:14:21 +0000] "GET /api/registrations HTTP/1.1" 200 9545 "-" "curl/8.14.1" {"timestamp":"2025-09-01 11:14:21:1421"}
+Request: {"method":"GET","url":"/","status":200,"duration":"5ms","ip":"127.0.0.1","userAgent":"curl/8.14.1","timestamp":"2025-09-01T08:14:21.551Z"}
+[35mhttp[39m: 127.0.0.1 - - [01/Sep/2025:08:14:39 +0000] "GET /api/registrations HTTP/1.1" 200 9545 "-" "curl/8.14.1" {"timestamp":"2025-09-01 11:14:39:1439"}
+Request: {"method":"GET","url":"/","status":200,"duration":"4ms","ip":"127.0.0.1","userAgent":"curl/8.14.1","timestamp":"2025-09-01T08:14:39.421Z"}

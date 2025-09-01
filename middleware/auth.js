@@ -256,9 +256,9 @@ export const requestLogger = (req, res, next) => {
     
     console.log('Request:', JSON.stringify(logData));
   });
-  
-  next();
-};
+    
+    next();
+  };
 
 // Logging functions for admin actions
 export const logAdminAction = (adminId, action, entityType, entityId, req, additionalData = {}) => {

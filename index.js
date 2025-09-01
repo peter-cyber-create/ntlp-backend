@@ -111,10 +111,10 @@ app.get('/health', async (req, res) => {
     const uptime = process.uptime();
     const memoryUsage = process.memoryUsage();
     
-    res.status(200).json({ 
-      status: 'OK', 
-      timestamp: new Date().toISOString(),
-      service: 'NTLP Backend API',
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    service: 'NTLP Backend API',
       version: '1.0.0',
       uptime: `${Math.floor(uptime / 60)} minutes`,
       memory: {

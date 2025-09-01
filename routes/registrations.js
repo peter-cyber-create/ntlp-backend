@@ -372,38 +372,37 @@ router.get('/', async (req, res) => {
 router.patch('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, admin_notes, review_comments } = req.body;
+    const { status } = req.body;
     
-    if (!['pending', 'under_review', 'approved', 'rejected', 'waitlist', 'cancelled'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+    // Use the actual status values from the registrations table
+    if (!['pending', 'confirmed', 'rejected', 'cancelled'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Allowed values: pending, confirmed, rejected, cancelled' });
     }
     
     const updateQuery = `
       UPDATE registrations SET 
-        status = ?, 
-        admin_notes = ?, 
-        review_comments = ?,
-        reviewed_at = NOW(),
+        status = ?,
         updated_at = NOW()
       WHERE id = ?
     `;
     
-    const [result] = await pool.query(updateQuery, [status, admin_notes, review_comments, id]);
+    const [result] = await pool.query(updateQuery, [status, id]);
     
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Registration not found' });
     }
     
-    // Update form submission status
-    await pool.query(`
-      UPDATE form_submissions SET 
-        status = ?, 
-        admin_notes = ?, 
-        review_comments = ?,
-        reviewed_at = NOW(),
-        updated_at = NOW()
-      WHERE form_type = 'registration' AND entity_id = ?
-    `, [status, admin_notes, review_comments, id]);
+    // Update form submission status if the table exists
+    try {
+      await pool.query(`
+        UPDATE form_submissions SET 
+          status = ?,
+          updated_at = NOW()
+        WHERE form_type = 'registration' AND entity_id = ?
+      `, [status, id]);
+    } catch (formError) {
+      console.log('Form submissions table update skipped:', formError.message);
+    }
     
     // Fetch updated registration
     const [rows] = await pool.query('SELECT * FROM registrations WHERE id = ?', [id]);
@@ -421,42 +420,40 @@ router.patch('/:id/status', async (req, res) => {
 // Bulk update registration statuses
 router.patch('/bulk/status', async (req, res) => {
   try {
-    const { ids, status, admin_notes, review_comments } = req.body;
+    const { ids, status } = req.body;
     
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: 'IDs array is required' });
     }
     
-    if (!['pending', 'under_review', 'approved', 'rejected', 'waitlist', 'cancelled'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+    if (!['pending', 'confirmed', 'rejected', 'cancelled'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Allowed values: pending, confirmed, rejected, cancelled' });
     }
     
     const placeholders = ids.map(() => '?').join(',');
-    const params = [...ids, status, admin_notes || null, review_comments || null];
+    const params = [...ids, status];
     
     // Update registrations
     const [result] = await pool.query(
       `UPDATE registrations SET 
-        status = ?, 
-        admin_notes = ?, 
-        review_comments = ?,
-        reviewed_at = NOW(),
+        status = ?,
         updated_at = NOW()
       WHERE id IN (${placeholders})`,
       params
     );
     
-    // Update form submissions
-    await pool.query(
-      `UPDATE form_submissions SET 
-        status = ?, 
-        admin_notes = ?, 
-        review_comments = ?,
-        reviewed_at = NOW(),
-        updated_at = NOW()
-      WHERE form_type = 'registration' AND entity_id IN (${placeholders})`,
-      params
-    );
+    // Update form submissions if the table exists
+    try {
+      await pool.query(
+        `UPDATE form_submissions SET 
+          status = ?,
+          updated_at = NOW()
+        WHERE form_type = 'registration' AND entity_id IN (${placeholders})`,
+        params
+      );
+    } catch (formError) {
+      console.log('Form submissions table update skipped:', formError.message);
+    }
     
     res.json({
       message: `${result.affectedRows} registrations updated successfully`,
