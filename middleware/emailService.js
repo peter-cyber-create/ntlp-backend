@@ -33,7 +33,7 @@ export const sendContactConfirmation = async (contactData) => {
         const { name, email, subject, message, id } = contactData;
         
         const mailOptions = {
-            from: process.env.SMTP_FROM || 'NTLP Conference <noreply@ntlp-conference.org>',
+            from: process.env.SMTP_FROM || 'NTLP Conference <noreply@conference.health.go.ug>',
             to: email,
             subject: `NTLP Conference - We received your message: ${subject}`,
             html: `
@@ -54,7 +54,7 @@ export const sendContactConfirmation = async (contactData) => {
                     
                     <p>If you have any urgent inquiries, please contact us directly at:</p>
                     <ul>
-                        <li>Email: contact@ntlp-conference.org</li>
+                        <li>Email: contact@conference.health.go.ug</li>
                         <li>Phone: +1 (555) 123-4567</li>
                     </ul>
                     
@@ -63,7 +63,7 @@ export const sendContactConfirmation = async (contactData) => {
                     <p style="color: #6b7280; font-size: 14px;">
                         Best regards,<br>
                         NTLP Conference 2025 Organizing Committee<br>
-                        <a href="https://ntlp-conference.org" style="color: #2563eb;">ntlp-conference.org</a>
+                        <a href="https://conference.health.go.ug" style="color: #2563eb;">conference.health.go.ug</a>
                     </p>
                 </div>
             `
@@ -83,10 +83,10 @@ export const sendAdminNotification = async (contactData) => {
     try {
         const { name, email, subject, message, id, organization } = contactData;
         
-        const adminEmail = process.env.ADMIN_EMAIL || 'admin@ntlp-conference.org';
+        const adminEmail = process.env.ADMIN_EMAIL || 'admin@conference.health.go.ug';
         
         const mailOptions = {
-            from: process.env.SMTP_FROM || 'NTLP Conference <noreply@ntlp-conference.org>',
+            from: process.env.SMTP_FROM || 'NTLP Conference <noreply@conference.health.go.ug>',
             to: adminEmail,
             subject: `[NTLP Admin] New Contact Message: ${subject}`,
             html: `
@@ -108,7 +108,7 @@ export const sendAdminNotification = async (contactData) => {
                     </div>
                     
                     <p style="margin-top: 30px;">
-                        <a href="http://localhost:5000/api/contacts/${id}" 
+                        <a href="${process.env.FRONTEND_URL}/admin/contacts" 
                            style="background-color: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
                            View in Admin Panel
                         </a>
@@ -137,7 +137,7 @@ export const sendResponseEmail = async (contactData, responseMessage) => {
         const { name, email, subject, id } = contactData;
         
         const mailOptions = {
-            from: process.env.SMTP_FROM || 'NTLP Conference <noreply@ntlp-conference.org>',
+            from: process.env.SMTP_FROM || 'NTLP Conference <noreply@conference.health.go.ug>',
             to: email,
             subject: `Re: ${subject} - NTLP Conference Response`,
             html: `
@@ -165,7 +165,7 @@ export const sendResponseEmail = async (contactData, responseMessage) => {
                     <p style="color: #6b7280; font-size: 14px;">
                         Best regards,<br>
                         NTLP Conference 2025 Organizing Committee<br>
-                        <a href="https://ntlp-conference.org" style="color: #2563eb;">ntlp-conference.org</a>
+                        <a href="https://conference.health.go.ug" style="color: #2563eb;">conference.health.go.ug</a>
                     </p>
                 </div>
             `

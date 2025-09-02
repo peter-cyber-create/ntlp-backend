@@ -2,7 +2,7 @@
 // Test script to verify frontend-backend synchronization
 import fetch from 'node-fetch';
 
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 async function testSync() {
   console.log('🔄 Testing Frontend-Backend Synchronization...\n');
